@@ -31,15 +31,22 @@ object Solvers {
     /**
       * Imports results of GCD solvers from temp file
       *
-      * @param conf      configurateion
+      * @param conf      configuration
       * @param inFile    file with problems
       * @param tmpOutput solver output
       */
     def readResultsForGCD(conf: PolynomialGCDConfiguration,
-                          inFile: String, tmpOutput: String,
+                          inFile: String,
+                          tmpOutput: String,
+                          parseHelper: (String, MultivariateRing[IntZ]) => MultivariatePolynomial[IntZ] = null,
                           timeUnit: TimeUnit = TimeUnit.NANOSECONDS): Map[Int, (Boolean, FiniteDuration)] = {
       val cfRing = if (conf.characteristic.isZero) Z else Zp(conf.characteristic)
       implicit val ring: MultivariateRing[IntZ] = MultivariateRing(cfRing, conf.variables)
+      val parser: String => MultivariatePolynomial[IntZ] =
+        if (parseHelper != null)
+          s => parseHelper(s, ring)
+        else
+          s => ring(s)
 
       // problem set
       val problems = Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty)
@@ -55,8 +62,8 @@ object Solvers {
         // same problem IDs
         assert(id == solution(0).toInt)
 
-        val expectedGCD = ring(problem(3))
-        val actualGCD = ring(solution(2))
+        val expectedGCD = parser(problem(3))
+        val actualGCD = parser(solution(2))
 
         result += id -> ((actualGCD % expectedGCD).isZero, FiniteDuration(solution(1).toLong, timeUnit))
       }

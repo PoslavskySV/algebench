@@ -160,6 +160,29 @@ object Cli {
         None
   }
 
+  trait FermatSolverOpts {
+    this: ScallopConfBase =>
+
+    val withFermat = toggle(
+      name = "fermat",
+      default = Some(false),
+      descrYes = "Fermat"
+    )
+
+    val fermatExec = opt[String](
+      name = "fermat-exec",
+      descr = "Path to Fermat executable",
+      default = Some("fer64"),
+      noshort = true
+    )
+
+    def mkFermatSolver()(implicit tempFileManager: TempFileManager): Option[FermatSolver] =
+      if (withFermat())
+        Some(FermatSolver(fermatExec()))
+      else
+        None
+  }
+
   class GlobalConf(arguments: Seq[String]) extends ScallopConf(arguments) {
     val keepTempFiles = toggle(
       name = "keep-temp-files",
@@ -261,6 +284,7 @@ object Cli {
       with RingsSolverOpts
       with MathematicaSolverOpts
       with FormSolverOpts
+      with FermatSolverOpts
       with SingleInputOpt
       with SingleOutputOpt {
       banner("Run tools on specified benchmarks")
@@ -274,7 +298,7 @@ object Cli {
       )
 
       def mkSolvers()(implicit tempFileManager: TempFileManager): Seq[Option[Solver]] =
-        Seq(mkRingsSolver(), mkMathematicaSolver(), mkFORMSolver())
+        Seq(mkRingsSolver(), mkMathematicaSolver(), mkFORMSolver(), mkFermatSolver())
     }
     addSubcommand(solveProblems)
 
@@ -289,16 +313,25 @@ object Cli {
     import io.circe.syntax._
 
     //    val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
-    //      "-n", "100",
+    //      "-n", "5",
+    //      "--characteristic", "4099",
     //      "--n-variables", "3",
-    //      "--min-size", "100", "--max-size", "100",
-    //      "--bit-length", "100", "gcd.problems"))
-    val runConfiguration = new GlobalConf(Array(
-      "solve",
-      "--mathematica", "--mathematica-exec", "/Applications/Mathematica.app/Contents/MacOS/MathematicaScript",
-      "--rings",
-      "--form", "--form-exec", "form",
-      "gcd.problems", "out"))
+    //      "--min-size", "2", "--max-size", "3",
+    //      "--bit-length", "2", "gcd.problems"))
+
+    val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
+      "-n", "100",
+      "--characteristic", "4099",
+      "--n-variables", "3",
+      "--min-size", "100", "--max-size", "100",
+      "--bit-length", "100", "gcd.problems"))
+//    val runConfiguration = new GlobalConf(Array(
+//      "solve",
+//      //            "--mathematica", "--mathematica-exec", "/Applications/Mathematica.app/Contents/MacOS/MathematicaScript",
+//      //            "--rings",
+//      //      "--form", "--form-exec", "form",
+//      "--fermat", "--fermat-exec", "/Users/poslavskysv/Downloads/ferm6/fer64",
+//      "gcd.problems", "out"))
 
     //    println(runConfiguration.printHelp())
     //    System.exit(0)
@@ -311,7 +344,7 @@ object Cli {
         runConfiguration.printHelp()
 
       case runConfiguration.generateProblems :: generateSpec => {
-        implicit val random: Random = new Random(!runConfiguration.generateProblems.rndSeed())
+        implicit val random: Random = new Random(runConfiguration.generateProblems.rndSeed())
 
         generateSpec match {
           case runConfiguration.generateProblems.gcdProblem :: method :: Nil =>

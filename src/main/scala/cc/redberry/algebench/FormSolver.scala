@@ -19,8 +19,10 @@ case class FormSolver(executable: String = "form")
   extends Solver with StandardGcdSolver {
   override val name: String = "FORM"
 
-  override def isApplicable(problem: ProblemConfiguration): Boolean = problem.problemType match {
-    case PolynomialGCD | PolynomialFactorization => true
+  override def isApplicable(problem: ProblemConfiguration): Boolean = problem match {
+    case p: PolynomialGCDConfiguration => p.characteristic.isZero
+    case p: PolynomialFactorizationConfiguration => p.characteristic.isZero
+    case _ => false
   }
 
   override def solve(problem: ProblemData): SolveResult = {
@@ -29,7 +31,6 @@ case class FormSolver(executable: String = "form")
       case _ => ???
     }
   }
-
 
   private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
     println(s"Solving GCD for $name")
@@ -85,15 +86,11 @@ case class FormSolver(executable: String = "form")
       formWriter.close()
     }
 
-    val dummy = new OutputStream {
-      override def write(b: Int): Unit = {}
-    }
-
     import sys.process._
     val start = System.nanoTime()
-
     // overcome huge output of FORM which can't be switched off
-    (s"$executable -q $formIn" #> dummy) !
+    val devNull = new OutputStream {override def write(b: Int): Unit = {}}
+    (s"$executable -q $formIn" #> devNull) !
     val totalTime = System.nanoTime() - start
 
     // read results
