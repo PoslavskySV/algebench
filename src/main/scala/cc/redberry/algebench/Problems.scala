@@ -68,6 +68,9 @@ object Problems {
     }
   }
 
+  import io.circe._, io.circe.generic.semiauto._
+  implicit val pbDecoder: Decoder[ProblemConfiguration] = deriveDecoder[ProblemConfiguration]
+  implicit val pbEncoder: Encoder[ProblemConfiguration] = deriveEncoder[ProblemConfiguration]
 
   //  case class StoredProblemData[+Type <: ProblemType](problemType: Type,
   //                                                     problemConfiguration: ProblemConfiguration[Type],

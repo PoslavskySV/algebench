@@ -8,8 +8,6 @@ version := "1.0"
 
 scalaVersion := "2.12.3"
 
-crossScalaVersions := Seq("2.11.11", "2.12.3")
-
 moduleName := name.value
 
 resolvers += Resolver.mavenLocal
@@ -19,7 +17,6 @@ libraryDependencies ++= Seq(
   "junit" % "junit" % "4.12" % Test,
   "com.novocode" % "junit-interface" % "0.11" % Test exclude("junit", "junit-dep"),
   "org.rogach" %% "scallop" % "3.1.2"
-//  "com.github.scopt" %% "scopt" % "3.7.0"
 )
 
 val circeVersion = "0.9.1"
@@ -42,7 +39,6 @@ publishTo := Some(
 
 import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
 
-releaseCrossBuild := true // true if you cross-build the project for multiple Scala versions
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   runClean,

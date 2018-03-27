@@ -270,6 +270,10 @@ object Generators {
 
   // circe coders
 
+  import io.circe._, io.circe.generic.semiauto._
+  implicit val distDecoder: Decoder[PolynomialsDistribution] = deriveDecoder[PolynomialsDistribution]
+  implicit val distEncoder: Encoder[PolynomialsDistribution] = deriveEncoder[PolynomialsDistribution]
+
   implicit val encodeIntZ: Encoder[IntZ] = (a: IntZ) => Json.obj(("IntZ", Json.fromString(a.toString)))
 
   implicit val decodeIntZ: Decoder[IntZ] = (c: HCursor) =>

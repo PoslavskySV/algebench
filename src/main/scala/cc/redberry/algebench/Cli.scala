@@ -1,14 +1,15 @@
 package cc.redberry.algebench
 
-import java.io.PrintWriter
+import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths, StandardOpenOption}
 
-import cc.redberry.algebench.Problems.PolynomialGCDConfiguration
+import cc.redberry.algebench.Util.TempFileManager
 import cc.redberry.rings.WithVariables
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
 import org.rogach.scallop._
 
+import scala.io.Source
 import scala.language.postfixOps
 import scala.util.Random
 
@@ -17,6 +18,9 @@ import scala.util.Random
   */
 object Cli {
 
+  import Generators._
+  import Problems._
+  import Solvers._
 
   /** default rnd seed */
   val DEFAULT_RND_SEED: Long = 314158926535L
@@ -24,7 +28,6 @@ object Cli {
   val DEFAULT_CHARACTERISTIC: IntZ = Z(0)
 
   private implicit val intZConverter: ValueConverter[IntZ] = singleArgConverter[IntZ](new IntZ(_))
-
 
   /** options for random */
   trait RandomOpt {
@@ -36,14 +39,28 @@ object Cli {
       noshort = true)
   }
 
+  /** with single output file */
   trait SingleOutputOpt {
     this: ScallopConfBase =>
 
     val output = trailArg[String](
+      descr = "Output file",
       required = true
     )
   }
 
+  /** with single output file */
+  trait SingleInputOpt {
+    this: ScallopConfBase =>
+
+    val input = trailArg[String](
+      descr = "Input file",
+      required = true
+    )
+  }
+
+
+  /** basic options for generating problems */
   trait BasePolyGenOpts extends SingleOutputOpt {
     this: ScallopConfBase =>
 
@@ -72,13 +89,66 @@ object Cli {
     )
   }
 
+  trait RingsSolverOpts {
+    this: ScallopConfBase =>
+
+    val rings = toggle(
+      name = "rings",
+      default = Some(false),
+      descrYes = "Rings (http://ringsalgebra.io)"
+    )
+
+    val ringsExecutable = opt[String](
+      descr = "Path to Rings executable",
+      default = Some("rings.repl"),
+      noshort = true
+    )
+
+    def mkRingsSolver()(implicit tempFileManager: TempFileManager): Option[RingsSolver] =
+      if (rings())
+        Some(RingsSolver(ringsExecutable()))
+      else
+        None
+  }
+
+  trait MathematicaSolverOpts {
+    this: ScallopConfBase =>
+
+    val mma = toggle(
+      name = "mathematica",
+      default = Some(false),
+      descrYes = "Wolfram Mathematica"
+    )
+
+    val mmaExecutable = opt[String](
+      descr = "Path to Mathematica executable",
+      default = Some("mathematica"),
+      noshort = true
+    )
+
+    def mkMathematicaSolver()(implicit tempFileManager: TempFileManager): Option[MathematicaSolver] =
+      if (mma())
+        Some(MathematicaSolver())
+      else
+        None
+  }
+
+
   class GlobalConf(arguments: Seq[String]) extends ScallopConf(arguments) {
+    val keepTempFiles = toggle(
+      name = "keep-temp-files",
+      default = Some(false)
+    )
+
+    // generating problems
     val generateProblems = new Subcommand("generate") with RandomOpt {
 
+      // generating GCD problems
       val gcdProblem = new Subcommand("gcd") {
+
+        // use simple uniform distribution
         val uniform = new Subcommand("uniform") with BasePolyGenOpts {
           banner("Generates polynomials with uniformly distributed exponents")
-
           val minSize = opt[Int](
             descr = "Minimal number of terms in factors",
             noshort = true,
@@ -93,7 +163,7 @@ object Cli {
 
           val size = opt[Int](
             descr = "Size of factors and gcd",
-            default = Some(100),
+            default = None,
             validate = 0 <)
 
           val minDegree = opt[Int](
@@ -105,10 +175,10 @@ object Cli {
             descr = "Maximal exponent of each variable in monomials",
             default = Some(20),
             validate = 0 <)
-
         }
         addSubcommand(uniform)
 
+        // use simple sharp distribution
         val sharp = new Subcommand("sharp") with BasePolyGenOpts {
           banner("Generates polynomials with sharp exponents")
 
@@ -126,16 +196,17 @@ object Cli {
 
           val size = opt[Int](
             descr = "Size of factors and gcd",
-            default = Some(100),
+            default = None,
             validate = 0 <)
 
           val totalDegree = opt[Int](
             descr = "Total degree of polynomials",
             default = Some(10),
             validate = 0 <)
-
         }
+        addSubcommand(sharp)
 
+        // use custom distributions
         val custom = new Subcommand("custom") with BasePolyGenOpts {
           banner("Generates polynomials with sharp exponents")
 
@@ -159,27 +230,42 @@ object Cli {
     addSubcommand(generateProblems)
 
 
+    // solve generated problems
+    val solveProblems = new Subcommand("solve")
+      with RingsSolverOpts
+      with MathematicaSolverOpts
+      with SingleInputOpt
+      with SingleOutputOpt {
+      banner("Run tools on specified benchmarks")
+
+      def mkSolvers()(implicit tempFileManager: TempFileManager): Seq[Option[Solver]] =
+        Seq(mkRingsSolver(), mkMathematicaSolver())
+    }
+    addSubcommand(solveProblems)
+
     verify()
   }
 
   def main(args: Array[String]): Unit = {
-    println(intZConverter)
-    import Generators._
     import io.circe.generic.auto._
     import io.circe.parser.decode
     import io.circe.syntax._
 
-    val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform", "-n", "10", "--n-variables", "3", "gcd.txt"))
+//        val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform", "-n", "10", "--n-variables", "3", "--min-size", "2", "--max-size", "2", "gcd.problems"))
+    val runConfiguration = new GlobalConf(Array("solve", "--rings", "gcd.problems", "out"))
+
+    // temp file manager
+    implicit val fileManaged: TempFileManager = TempFileManager(runConfiguration.keepTempFiles())
 
     runConfiguration.subcommands match {
 
       case List() =>
         runConfiguration.printHelp()
 
-      case runConfiguration.generateProblems :: subcommands => {
+      case runConfiguration.generateProblems :: generateSpec => {
         implicit val random: Random = new Random(runConfiguration.generateProblems.rndSeed())
 
-        subcommands match {
+        generateSpec match {
           case runConfiguration.generateProblems.gcdProblem :: method :: Nil =>
             // generate GCD problems
             val gcdProblem = runConfiguration.generateProblems.gcdProblem
@@ -224,12 +310,18 @@ object Cli {
             val gcdConfig = PolynomialGCDConfiguration(
               commonOpts.characteristic(),
               WithVariables.defaultVars(commonOpts.nVariables()),
-              commonOpts.nProblems(), gcdDist, f1Dist, f2Dist)
+              commonOpts.nProblems(),
+              gcdDist,
+              f1Dist,
+              f2Dist)
 
+            val outFile = new File(commonOpts.output())
+            if (outFile.exists())
+              outFile.delete()
 
-            val writer = new PrintWriter(Files.newBufferedWriter(Paths.get(commonOpts.output()), StandardOpenOption.CREATE))
+            val writer = new PrintWriter(Files.newBufferedWriter(outFile.toPath, StandardOpenOption.CREATE))
             try {
-              writer.println(gcdConfig.asJson.noSpaces)
+              writer.println("#" + gcdConfig.asInstanceOf[ProblemConfiguration].asJson.noSpaces)
               writer.println(Seq("#problemID", "poly1", "poly2", "expected gcd").mkString("\t"))
               for (iProblem <- 0 until gcdConfig.nProblems) {
                 val gcd = gcdConfig.gcd.sample
@@ -240,11 +332,38 @@ object Cli {
             } finally {
               writer.close()
             }
-
-
-          case Nil =>
         }
       }
+
+
+      case (solveCmd@runConfiguration.solveProblems) :: Nil =>
+        val solvers = solveCmd.mkSolvers().filter(_.isDefined).map(_.get)
+        if (solvers.isEmpty)
+          throw new RuntimeException("no any solvers specified")
+
+        val header = Source.fromFile(solveCmd.input()).getLines().toIterable.headOption match {
+          case Some(h) => h.replaceFirst("^#", "")
+          case None => throw new RuntimeException("Can't read problem configuration from " + solveCmd.input())
+        }
+
+        val problemConfiguration = decode[ProblemConfiguration](header) match {
+          case Left(err) => throw new RuntimeException("Can't read problem configuration from " + solveCmd.input(), err)
+          case Right(conf) => conf
+        }
+
+        solvers.find(s => !s.isApplicable(problemConfiguration)) match {
+          case Some(solver) => throw new RuntimeException(s"Solver ${solver.name} is not applicable for problem:\n " + problemConfiguration.asJson.spaces2)
+          case _ =>
+        }
+
+        val problemData = ProblemData(problemConfiguration, solveCmd.input())
+
+        val results = solvers.map(s => (s.name, s.solve(problemData)))
+        println(results)
+        Files.write(Paths.get(solveCmd.output()), java.util.Collections.singleton(results.toString()))
+
+      case Nil =>
+
       case _ =>
     }
   }
