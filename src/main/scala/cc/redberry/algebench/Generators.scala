@@ -43,7 +43,6 @@ object Generators {
     def sample(implicit random: Random): Int
   }
 
-
   object IntDistribution {
     def uniform(min: Int, max: Int) = UniformIntDistribution(min, max)
 

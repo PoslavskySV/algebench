@@ -13,8 +13,8 @@ object Util {
   final case class TempFileManager(deleteOnExit: Boolean = true) {
     private val currentDir = new File(System.getProperty("user.dir"))
 
-    def createTempFile(name: String): File = {
-      val file = File.createTempFile(name, null, currentDir)
+    def createTempFile(name: String, suff : String = null): File = {
+      val file = File.createTempFile(name, suff, currentDir)
       if (deleteOnExit)
         file.deleteOnExit()
       file
