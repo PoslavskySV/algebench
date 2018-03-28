@@ -25,7 +25,7 @@ case class FormSolver(executable: String = "form")
     case _ => false
   }
 
-  override def solve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData): SolveResult = {
     problem match {
       case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
       case _ => ???
@@ -33,8 +33,6 @@ case class FormSolver(executable: String = "form")
   }
 
   private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
-    println(s"Solving GCD for $name")
-
     val variables = conf.variables.mkString(",")
 
     // prepare input FORM file
@@ -62,7 +60,7 @@ case class FormSolver(executable: String = "form")
 
         formWriter.println()
 
-        formWriter.println("#$tstart%s = `timer_';".format(problemId))
+        formWriter.println(s"#$$tstart$problemId = `timer_';")
         formWriter.println(s"Local gcd$problemId = gcd_(a$problemId, b$problemId);")
         formWriter.println(".sort")
         formWriter.println("#$telapsed%s = (`timer_' - `$tstart%s');".format(problemId, problemId))

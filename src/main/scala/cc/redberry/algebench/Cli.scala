@@ -4,7 +4,6 @@ import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import cc.redberry.algebench.Util.TempFileManager
-import cc.redberry.rings.WithVariables
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
 import org.rogach.scallop._
@@ -28,6 +27,16 @@ object Cli {
   val DEFAULT_RND_SEED: Long = 314158926535L
   /** default field characteristic */
   val DEFAULT_CHARACTERISTIC: IntZ = Z(0)
+
+  def defaultVars(nVars: Int): Array[String] = {
+    val vars = new Array[String](nVars)
+    var i = 1
+    while (i <= nVars) {
+      vars(i - 1) = "x" + i
+      i += 1
+    }
+    vars
+  }
 
   private implicit val intZConverter: ValueConverter[IntZ] = singleArgConverter[IntZ](new IntZ(_))
 
@@ -183,6 +192,29 @@ object Cli {
         None
   }
 
+  trait SingularSolverOpts {
+    this: ScallopConfBase =>
+
+    val withSingular = toggle(
+      name = "singular",
+      default = Some(false),
+      descrYes = "Singular"
+    )
+
+    val singularExec = opt[String](
+      name = "singular-exec",
+      descr = "Path to Singular executable",
+      default = Some("singular"),
+      noshort = true
+    )
+
+    def mkSingularSolver()(implicit tempFileManager: TempFileManager): Option[SingularSolver] =
+      if (withSingular())
+        Some(SingularSolver(singularExec()))
+      else
+        None
+  }
+
   class GlobalConf(arguments: Seq[String]) extends ScallopConf(arguments) {
     val keepTempFiles = toggle(
       name = "keep-temp-files",
@@ -285,6 +317,7 @@ object Cli {
       with MathematicaSolverOpts
       with FormSolverOpts
       with FermatSolverOpts
+      with SingularSolverOpts
       with SingleInputOpt
       with SingleOutputOpt {
       banner("Run tools on specified benchmarks")
@@ -298,7 +331,7 @@ object Cli {
       )
 
       def mkSolvers()(implicit tempFileManager: TempFileManager): Seq[Option[Solver]] =
-        Seq(mkRingsSolver(), mkMathematicaSolver(), mkFORMSolver(), mkFermatSolver())
+        Seq(mkRingsSolver(), mkMathematicaSolver(), mkFORMSolver(), mkFermatSolver(), mkSingularSolver())
     }
     addSubcommand(solveProblems)
 
@@ -312,26 +345,27 @@ object Cli {
     import io.circe.parser.decode
     import io.circe.syntax._
 
-    //    val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
-    //      "-n", "5",
-    //      "--characteristic", "4099",
-    //      "--n-variables", "3",
-    //      "--min-size", "2", "--max-size", "3",
-    //      "--bit-length", "2", "gcd.problems"))
+//        val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
+//          "-n", "5",
+//          "--characteristic", "4099",
+//          "--n-variables", "3",
+//          "--min-size", "2", "--max-size", "3",
+//          "--bit-length", "2", "gcd.problems"))
 
-    val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
-      "-n", "100",
-      "--characteristic", "4099",
-      "--n-variables", "3",
-      "--min-size", "100", "--max-size", "100",
-      "--bit-length", "100", "gcd.problems"))
-//    val runConfiguration = new GlobalConf(Array(
-//      "solve",
-//      //            "--mathematica", "--mathematica-exec", "/Applications/Mathematica.app/Contents/MacOS/MathematicaScript",
-//      //            "--rings",
-//      //      "--form", "--form-exec", "form",
-//      "--fermat", "--fermat-exec", "/Users/poslavskysv/Downloads/ferm6/fer64",
-//      "gcd.problems", "out"))
+    //        val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
+    //          "-n", "1000",
+    //          "--characteristic", "4099",
+    //          "--n-variables", "5",
+    //          "--min-size", "100", "--max-size", "100",
+    //          "--bit-length", "100", "gcd.problems"))
+    val runConfiguration = new GlobalConf(Array(
+      "solve",
+//      "--mathematica", "--mathematica-exec", "/Applications/Mathematica.app/Contents/MacOS/MathematicaScript",
+//      "--rings", "--rings-exec", "/Users/poslavskysv/Projects/redberry2/rings/rings.repl/rings.repl",
+            "--singular", "--singular-exec", "/Applications/Singular.app/Contents/bin/Singular",
+      //            "--form", "--form-exec", "form",
+      //      "--fermat", "--fermat-exec", "/Users/poslavskysv/Downloads/ferm6/fer64",
+      "gcd.problems", "out"))
 
     //    println(runConfiguration.printHelp())
     //    System.exit(0)
@@ -390,7 +424,7 @@ object Cli {
 
             val gcdConfig = PolynomialGCDConfiguration(
               commonOpts.characteristic(),
-              WithVariables.defaultVars(commonOpts.nVariables()),
+              defaultVars(commonOpts.nVariables()),
               commonOpts.nProblems(),
               gcdDist, f1Dist, f2Dist)
 
@@ -406,7 +440,7 @@ object Cli {
                 val gcd = gcdConfig.gcd.sample
                 val f1 = gcd * gcdConfig.factor_1.sample
                 val f2 = gcd * gcdConfig.factor_2.sample
-                writer.println(Seq(iProblem, f1, f2, gcd).mkString("\t"))
+                writer.println(Seq(iProblem, f1.toString(gcdConfig.variables), f2.toString(gcdConfig.variables), gcd.toString(gcdConfig.variables)).mkString("\t"))
               }
             } finally {
               writer.close()

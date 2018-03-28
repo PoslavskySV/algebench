@@ -26,17 +26,14 @@ case class FermatSolver(executable: String = "fer64")
     case _ => false
   }
 
-  override def solve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData): SolveResult = {
     problem match {
       case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
       case _ => ???
     }
   }
 
-
   private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
-    println(s"Solving GCD for $name")
-
     // prepare input FORM file
     val ferIn = tmpFileManager.createTempFile("ferIn").getAbsolutePath
     val ferOut = tmpFileManager.createTempFile("ferOut").getAbsolutePath
@@ -74,9 +71,9 @@ case class FermatSolver(executable: String = "fer64")
 
     import sys.process._
     val start = System.nanoTime()
-
-    // omg, my eyes not seen this...
-    (s"$executable" #< new File(ferIn)
+    // omg, I wish my eyes not seen this...
+    (s"$executable"
+      #< new File(ferIn)
       #| Seq("awk", """/`$/{printf "%s ", $0; next} {print}""")
       #| Seq("sed", "s:`::g")
       #| "sed s:>::g"

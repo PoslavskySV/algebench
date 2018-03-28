@@ -15,16 +15,19 @@ import scala.io.Source
   *
   */
 object Solvers {
-
-
   trait Solver {
     val name: String
 
     /** Whether software is applicable to given problem */
     def isApplicable(problem: ProblemConfiguration): Boolean
 
+    final def solve(problem: ProblemData): SolveResult = {
+      println(s"Running $name...")
+      innerSolve(problem)
+    }
+
     /** Solves the problem */
-    def solve(problem: ProblemData): SolveResult
+    def innerSolve(problem: ProblemData): SolveResult
   }
 
   trait StandardGcdSolver {
@@ -38,6 +41,7 @@ object Solvers {
     def readResultsForGCD(conf: PolynomialGCDConfiguration,
                           inFile: String,
                           tmpOutput: String,
+                          separator: String = "\t",
                           parseHelper: (String, MultivariateRing[IntZ]) => MultivariatePolynomial[IntZ] = null,
                           timeUnit: TimeUnit = TimeUnit.NANOSECONDS): Map[Int, (Boolean, FiniteDuration)] = {
       val cfRing = if (conf.characteristic.isZero) Z else Zp(conf.characteristic)
@@ -56,7 +60,7 @@ object Solvers {
       val result = mutable.Map.empty[Int, (Boolean, FiniteDuration)]
       while (problems.hasNext && solutions.hasNext) {
         val problem = problems.next().split("\t")
-        val solution = solutions.next().split("\t")
+        val solution = solutions.next().split(separator)
 
         val id = problem(0).toInt
         // same problem IDs

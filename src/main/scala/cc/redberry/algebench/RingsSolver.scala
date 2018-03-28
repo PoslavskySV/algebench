@@ -20,7 +20,7 @@ case class RingsSolver(executable: String = "rings.repl")
     case PolynomialGCD | PolynomialFactorization => true
   }
 
-  override def solve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData): SolveResult = {
     problem match {
       case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
       case _ => ???
@@ -28,7 +28,6 @@ case class RingsSolver(executable: String = "rings.repl")
   }
 
   private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
-    println(s"Solving GCD for $name")
     val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
