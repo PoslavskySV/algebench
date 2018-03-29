@@ -10,7 +10,7 @@ Generate a set of GCD problems:
 algebench generate gcd uniform --characteristic 0 --bit-length 128 --n-variables 3 --n-problems 100 --min-size 50 --max-size 50 --min-degree 0 --max-degree 50 gcd.problems
 ```
 
-Solve them with different tools:
+Solve them with different tools and get statistics:
 
 ```bash
 algebench solve  --rings --singular --mathematica --form --fermat gcd.problems gcd.timigs.tsv
