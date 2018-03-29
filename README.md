@@ -7,7 +7,7 @@ A tool for benchmarking libraries/systems for doing commutative algebra
 Generate a set of GCD problems:
 
 ```bash
-algebench generate gcd uniform --characteristic 0 --n-variables 3 --n-problems 100 --min-size 50 --max-size 50 --bit-length 128 --min-degree 0 --max-degree 50 gcd.problems
+algebench generate gcd uniform --characteristic 0 --bit-length 128 --n-variables 3 --n-problems 100 --min-size 50 --max-size 50 --min-degree 0 --max-degree 50 gcd.problems
 ```
 
 Solve them with different tools:
