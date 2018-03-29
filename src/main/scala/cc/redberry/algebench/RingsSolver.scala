@@ -147,6 +147,7 @@ object RingsSolver {
 
     val withRings = toggle(
       name = "rings",
+      noshort = true,
       default = Some(false),
       descrYes = "Rings (http://ringsalgebra.io)"
     )

@@ -144,6 +144,7 @@ object MathematicaSolver {
 
     val withMathematica = toggle(
       name = "mathematica",
+      noshort = true,
       default = Some(false),
       descrYes = "Wolfram Mathematica"
     )

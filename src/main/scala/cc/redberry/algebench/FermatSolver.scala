@@ -180,6 +180,7 @@ object FermatSolver {
 
     val withFermat = toggle(
       name = "fermat",
+      noshort = true,
       default = Some(false),
       descrYes = "Fermat (http://home.bway.net/lewis/)"
     )

@@ -152,6 +152,7 @@ object SingularSolver {
 
     val withSingular = toggle(
       name = "singular",
+      noshort = true,
       default = Some(false),
       descrYes = "Singular (https://www.singular.uni-kl.de)"
     )

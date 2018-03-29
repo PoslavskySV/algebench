@@ -119,6 +119,7 @@ object FormSolver {
 
     val withFORM = toggle(
       name = "form",
+      noshort = true,
       default = Some(false),
       descrYes = "FORM (https://www.nikhef.nl/~form/)"
     )
