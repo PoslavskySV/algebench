@@ -124,7 +124,7 @@ object Cli {
     val minDegree = opt[Int](
       descr = "Minimal exponent of each variable in monomials",
       default = Some(10),
-      validate = 0 <)
+      validate = 0 <=)
 
     val maxDegree = opt[Int](
       descr = "Maximal exponent of each variable in monomials",
