@@ -5,10 +5,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 import cc.redberry.rings.Rings
 import cc.redberry.rings.poly.multivar
-import cc.redberry.rings.poly.multivar.MonomialOrder
+import cc.redberry.rings.poly.multivar.{MonomialOrder, MultivariateSquareFreeFactorization}
 import cc.redberry.rings.scaladsl.{IntZ, MultivariatePolynomial, Ring, _}
 import cc.redberry.rings.util.ArraysUtil
-import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics
 
 import scala.util.Random
@@ -170,7 +169,7 @@ object Generators {
     }
   }
 
-  implicit class PolynomialDistributionOps(dist: PolynomialsDistribution) {
+  implicit class PolynomialsDistributionOps(dist: PolynomialsDistribution) {
     /** apply func to each sample */
     final def andThen(func: MultivariatePolynomial[IntZ] => MultivariatePolynomial[IntZ]): PolynomialsDistribution =
       dist match {
@@ -193,6 +192,10 @@ object Generators {
     /** force constant term to be non zero */
     final def withCC(): PolynomialsDistribution =
       andThen(p => if (p.ccAsPoly().isZero) p.increment() else p)
+
+    /** take square free part of each generated polynomial */
+    final def squareFree(): PolynomialsDistribution =
+      andThen(p => MultivariateSquareFreeFactorization.SquareFreePart[Monomial[IntZ], MultivariatePolynomial[IntZ]](p))
 
     /** track samples statistics */
     final def attachStatistics(statistics: SamplesStatistics): PolynomialsDistribution =
@@ -269,7 +272,9 @@ object Generators {
 
   // circe coders
 
-  import io.circe._, io.circe.generic.semiauto._
+  import io.circe._
+  import io.circe.generic.semiauto._
+
   implicit val distDecoder: Decoder[PolynomialsDistribution] = deriveDecoder[PolynomialsDistribution]
   implicit val distEncoder: Encoder[PolynomialsDistribution] = deriveEncoder[PolynomialsDistribution]
 

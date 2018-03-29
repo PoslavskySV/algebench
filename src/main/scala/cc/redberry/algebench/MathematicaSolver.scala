@@ -1,6 +1,7 @@
 package cc.redberry.algebench
 
 import java.nio.file.{Files, Paths}
+import java.util
 
 import cc.redberry.algebench.Problems.{PolynomialFactorizationConfiguration, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
 import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardFactorizationSolver, StandardGcdSolver}
@@ -12,7 +13,7 @@ import scala.concurrent.duration._
 /**
   * Wolfram Mathematica solver
   */
-final case class MathematicaSolver(executable: String = "MathematicaScript")
+final case class MathematicaSolver(executable: String = "wolframscript")
                                   (implicit tmpFileManager: TempFileManager)
   extends Solver
     with StandardGcdSolver
@@ -33,12 +34,13 @@ final case class MathematicaSolver(executable: String = "MathematicaScript")
   }
 
   private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
-    val mmaTempOut = createTempFile("mmaGCD.out").getAbsolutePath
+    val mmaOut = createTempFile("mmaGCD.out").getAbsolutePath
+    val mmaTmp = createTempFile("mmaTmp.ws").getAbsolutePath
     val code =
       s"""
          | modulus = ${conf.characteristic};
          | in = OpenRead["$inFile"];
-         | out = OpenWrite["$mmaTempOut"];
+         | out = OpenWrite["$mmaOut"];
          | While[True,
          |   line = ReadLine[in];
          |   If[line == EndOfFile, Break[]];
@@ -63,34 +65,32 @@ final case class MathematicaSolver(executable: String = "MathematicaScript")
       """.stripMargin
 
     println(s"Running $name process...")
-    val mmaProcess = new ProcessBuilder(executable)
-      .redirectErrorStream(true)
-      .start()
-
+    Files.write(Paths.get(mmaTmp), util.Arrays.asList(code.split("\n"): _*))
+    import scala.sys.process._
     val start = System.nanoTime()
-    mmaProcess.getOutputStream.write(code.getBytes)
-    mmaProcess.getOutputStream.flush()
-    mmaProcess.getOutputStream.close()
-    mmaProcess.waitFor()
+    s"$executable -script $mmaTmp" !
     val totalTime = System.nanoTime() - start
 
     // read results
     println(s"Reading $name results...")
-    val result = SolveResult(importGcdResults(conf, inFile, mmaTempOut), totalTime.nanoseconds)
+    val result = SolveResult(importGcdResults(conf, inFile, mmaOut), totalTime.nanoseconds)
 
     // remove tmp files
-    if (tmpFileManager.deleteOnExit)
-      Files.delete(Paths.get(mmaTempOut))
+    if (tmpFileManager.deleteOnExit) {
+      Files.delete(Paths.get(mmaOut))
+      Files.delete(Paths.get(mmaTmp))
+    }
 
     result
   }
 
   private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String): SolveResult = {
-    val mmaTempOut = createTempFile("mmaFactor.out").getAbsolutePath
+    val mmaOut = createTempFile("mmaFactor.out").getAbsolutePath
+    val mmaTmp = createTempFile("mmaTmp.ws").getAbsolutePath
     val code =
       s"""
          | in = OpenRead["$inFile"];
-         | out = OpenWrite["$mmaTempOut"];
+         | out = OpenWrite["$mmaOut"];
          | While[True,
          |   line = ReadLine[in];
          |   If[line == EndOfFile, Break[]];
@@ -100,10 +100,11 @@ final case class MathematicaSolver(executable: String = "MathematicaScript")
          |
          |   problemId = tabDelim[[1]];
          |   poly  = tabDelim[[3]] // ToExpression;
-         |   factors = Timing[Factor[poly]];
+         |   factors = Timing[FactorList[poly]];
          |
          |   timeNanos = Round[factors[[1]] 10^9] // ToString;
-         |   result = StringReplace[factors[[2]] // InputForm // ToString, " " -> "", "{" -> "", "}" -> "", "," -> "\t"];
+         |   result = #[[1]] & /@ factors[[2]];
+         |   result = StringReplace[result // InputForm // ToString, {" " -> "", "{" -> "", "}" -> "", "," -> "\t"}];
          |
          |   WriteString[out,
          |     problemId <> "\t" <> timeNanos <> "\t" <> result <> "\n"];
@@ -113,23 +114,22 @@ final case class MathematicaSolver(executable: String = "MathematicaScript")
          | Quit[];
       """.stripMargin
 
-    val mmaProcess = new ProcessBuilder(executable)
-      .redirectErrorStream(true)
-      .start()
-
+    println(s"Running $name process...")
+    Files.write(Paths.get(mmaTmp), util.Arrays.asList(code.split("\n"): _*))
+    import scala.sys.process._
     val start = System.nanoTime()
-    mmaProcess.getOutputStream.write(code.getBytes)
-    mmaProcess.getOutputStream.flush()
-    mmaProcess.getOutputStream.close()
-    mmaProcess.waitFor()
+    s"$executable -script $mmaTmp" !
     val totalTime = System.nanoTime() - start
 
     // read results
-    val result = SolveResult(importFactorizationResults(conf, inFile, mmaTempOut), totalTime.nanoseconds)
+    println(s"Reading $name results...")
+    val result = SolveResult(importFactorizationResults(conf, inFile, mmaOut), totalTime.nanoseconds)
 
     // remove tmp files
-    if (tmpFileManager.deleteOnExit)
-      Files.delete(Paths.get(mmaTempOut))
+    if (tmpFileManager.deleteOnExit) {
+      Files.delete(Paths.get(mmaOut))
+      Files.delete(Paths.get(mmaTmp))
+    }
 
     result
   }

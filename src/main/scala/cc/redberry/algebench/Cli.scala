@@ -4,7 +4,6 @@ import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import cc.redberry.algebench.Util.TempFileManager
-import cc.redberry.rings.poly.multivar.MultivariateSquareFreeFactorization
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
 import org.rogach.scallop._
@@ -450,7 +449,7 @@ object Cli {
 
               case p@factorProblem.custom =>
                 decodeDistribution(p.dist())
-            }).noMonomialContent()
+            }).noMonomialContent().squareFree()
 
             // common opts
             val commonOpts = method.asInstanceOf[BaseFactorizationOpts]
@@ -469,22 +468,18 @@ object Cli {
             val writer = new PrintWriter(Files.newBufferedWriter(outFile.toPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
             try {
               writer.println("#" + factorConfig.asInstanceOf[ProblemConfiguration].asJson.noSpaces)
-
               writer.println(("#problemID" :: "trivial" :: "polynomial" :: (1 to commonOpts.nFactors()).map(i => s"factor_$i").toList).mkString("\t"))
               for (iProblem <- 0 until factorConfig.nProblems) {
-                var factors: List[MultivariatePolynomial[IntZ]] = null
-                var poly: MultivariatePolynomial[IntZ] = null
-                do {
-                  factors = (1 to commonOpts.nFactors()).map(_ => dist.sample).toList
-                  poly = factors.foldLeft(factors.head.createOne)(_ * _)
-                } while (!MultivariateSquareFreeFactorization.isSquareFree[Monomial[IntZ], MultivariatePolynomial[IntZ]](poly))
+                val factors = (1 to commonOpts.nFactors()).map(_ => dist.sample).toList
+                val poly = factors.foldLeft(factors.head.createOne)(_ * _)
 
-                writer.println(
-                  (iProblem
-                    :: commonOpts.trivialFactorization()
-                    :: poly.toString(factorConfig.variables)
-                    :: factors.map(_.toString(factorConfig.variables))
-                    ).mkString("\t"))
+                writer.write(iProblem.toString)
+                writer.write("\t")
+                writer.write(commonOpts.trivialFactorization().toString)
+                writer.write("\t")
+                writer.write(poly.toString(factorConfig.variables))
+                factors.foreach { f => writer.write("\t"); writer.write(f.toString(factorConfig.variables)) }
+                writer.write("\n")
               }
             } finally {
               writer.close()

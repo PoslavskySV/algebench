@@ -70,6 +70,7 @@ case class FermatSolver(executable: String = "fer64")
       ferWriter.close()
     }
 
+    println(s"Running $name process...")
     import sys.process._
     val start = System.nanoTime()
     // omg, I wish my eyes not seen this... will move this to Scala in future
@@ -87,6 +88,7 @@ case class FermatSolver(executable: String = "fer64")
     val totalTime = System.nanoTime() - start
 
     // read results
+    println(s"Reading $name results...")
     val result = SolveResult(
       importGcdResults(conf, inFile, ferOut,
         parseHelper = (s, r) => FermatSolver.parseFermat(s)(r),

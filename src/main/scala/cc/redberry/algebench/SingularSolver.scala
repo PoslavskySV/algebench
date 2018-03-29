@@ -67,6 +67,7 @@ case class SingularSolver(executable: String = "Singular")
       writer.close()
     }
 
+    println(s"Running $name process...")
     import scala.sys.process._
     val start = System.nanoTime()
     // overcome huge output of Singular which can't be switched off
@@ -75,6 +76,7 @@ case class SingularSolver(executable: String = "Singular")
     val totalTime = System.nanoTime() - start
 
     // read results
+    println(s"Reading $name results...")
     val result = SolveResult(importGcdResults(conf, inFile, singularOut, splitHelper = str => str.split(" "), timeUnit = MILLISECONDS), totalTime.nanoseconds)
 
     // remove tmp files
@@ -120,16 +122,16 @@ case class SingularSolver(executable: String = "Singular")
       writer.close()
     }
 
+    println(s"Running $name process...")
     import scala.sys.process._
     val start = System.nanoTime()
-    // overcome huge output of Singular which can't be switched off
-    val devNull = new OutputStream {override def write(b: Int): Unit = {}}
-    (Seq(s"$executable", "-q", "-c", s"""< "$singularIn";""") #> devNull) !
+    Seq(s"$executable", "-q", "--no-warn", "-c", s"""< "$singularIn";""") !
     val totalTime = System.nanoTime() - start
 
     // read results
+    println(s"Reading $name results...")
     val result = SolveResult(importFactorizationResults(conf, inFile, singularOut,
-      splitHelper = str => str.replace(",", "").split(" "),
+      splitHelper = str => str.replace(",", " ").split(" "),
       timeUnit = MILLISECONDS), totalTime.nanoseconds)
 
     // remove tmp files

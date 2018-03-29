@@ -37,7 +37,7 @@ case class RingsSolver(executable: String = "rings.repl")
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
     val ringsOut = createTempFile("ringsGCD.out").getAbsolutePath
-    val ringsTmp = createTempFile("ringsTmp.out").getAbsolutePath
+    val ringsTmp = createTempFile("ringsTmp.sc").getAbsolutePath
 
     val code =
       s"""
@@ -73,8 +73,8 @@ case class RingsSolver(executable: String = "rings.repl")
     s"$executable $ringsTmp" !
     val totalTime = System.nanoTime() - start
 
-    println(s"Reading $name results...")
     // read results
+    println(s"Reading $name results...")
     val result = SolveResult(importGcdResults(conf, inFile, ringsOut), totalTime.nanoseconds)
 
     // remove tmp files
@@ -90,12 +90,14 @@ case class RingsSolver(executable: String = "rings.repl")
     val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
-    val ringsTempOut = createTempFile("ringsFactor.out").getAbsolutePath
+    val ringsOut = createTempFile("ringsFactor.out").getAbsolutePath
+    val ringsTmp = createTempFile("ringsTmp.sc").getAbsolutePath
+
     val code =
       s"""
       import java.io._
       import scala.io._
-      val output = new PrintWriter(new File("$ringsTempOut"))
+      val output = new PrintWriter(new File("$ringsOut"))
       try {
         implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
         for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
@@ -105,7 +107,7 @@ case class RingsSolver(executable: String = "rings.repl")
           val poly = ring(tabDelim(2))
 
           val start = System.nanoTime()
-          val factors = ring.factor(poly)
+          val factors = ring.factor(poly).map(_._1)
           val elapsed = System.nanoTime() - start
 
           output.println( (Seq(problemId, elapsed) ++ factors.map(f => ring.show(f)) ).mkString("\\t"))
@@ -116,23 +118,22 @@ case class RingsSolver(executable: String = "rings.repl")
       exit
       """
 
-    val ringsProcess = new ProcessBuilder(executable)
-      .redirectErrorStream(true)
-      .start()
-
+    Files.write(Paths.get(ringsTmp), util.Arrays.asList(code.split("\n"): _*))
+    println(s"Running $name process...")
+    import scala.sys.process._
     val start = System.nanoTime()
-    ringsProcess.getOutputStream.write(code.getBytes)
-    ringsProcess.getOutputStream.flush()
-    ringsProcess.getOutputStream.close()
-    ringsProcess.waitFor()
+    s"$executable $ringsTmp" !
     val totalTime = System.nanoTime() - start
 
     // read results
-    val result = SolveResult(importFactorizationResults(conf, inFile, ringsTempOut), totalTime.nanoseconds)
+    println(s"Reading $name results...")
+    val result = SolveResult(importFactorizationResults(conf, inFile, ringsOut), totalTime.nanoseconds)
 
     // remove tmp files
-    if (tmpFileManager.deleteOnExit)
-      Files.delete(Paths.get(ringsTempOut))
+    if (tmpFileManager.deleteOnExit) {
+      Files.delete(Paths.get(ringsOut))
+      Files.delete(Paths.get(ringsTmp))
+    }
 
     result
   }
