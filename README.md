@@ -19,8 +19,6 @@ algebench solve  --rings --singular --mathematica --form --fermat gcd.problems g
 ## General usage
 
 ```
-algebench v1.0: a tool for benchmarking polynomial software
-
 Usage: algebench action [OPTION]...
 Options:
   -k, --keep-temp-files
@@ -168,16 +166,16 @@ Solves generated probles with provided solvers and writes timing statistics to o
       --fermat                    Fermat (http://home.bway.net/lewis/)
       --nofermat
       --fermat-exec  <arg>        Path to Fermat executable
-  -f, --form                      FORM (https://www.nikhef.nl/~form/)
+      --form                      FORM (https://www.nikhef.nl/~form/)
       --noform
       --form-exec  <arg>          Path to FORM executable
-  -m, --mathematica               Wolfram Mathematica
+      --mathematica               Wolfram Mathematica
       --nomathematica
       --mathematica-exec  <arg>   Path to Mathematica executable
-  -r, --rings                     Rings (http://ringsalgebra.io)
+      --rings                     Rings (http://ringsalgebra.io)
       --norings
       --rings-exec  <arg>         Path to Rings executable
-  -s, --singular                  Singular (https://www.singular.uni-kl.de)
+      --singular                  Singular (https://www.singular.uni-kl.de)
       --nosingular
       --singular-exec  <arg>      Path to Singular executable
       --threads  <arg>            Number of threads for running solvers, if
