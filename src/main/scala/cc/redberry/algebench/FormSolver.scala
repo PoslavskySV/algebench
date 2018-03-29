@@ -7,18 +7,20 @@ import java.util.concurrent.TimeUnit
 import cc.redberry.algebench.Problems._
 import cc.redberry.algebench.Solvers._
 import cc.redberry.algebench.Util._
+import org.rogach.scallop.ScallopConfBase
 
 import scala.concurrent.duration._
 import scala.io.Source
 
 /**
-  *
+  * FORM solver
   */
 case class FormSolver(executable: String = "form")
                      (implicit tmpFileManager: TempFileManager)
   extends Solver with StandardGcdSolver {
   override val name: String = "FORM"
 
+  /** Applicable only for characteristic zero problems */
   override def isApplicable(problem: ProblemConfiguration): Boolean = problem match {
     case p: PolynomialGCDConfiguration => p.characteristic.isZero
     case p: PolynomialFactorizationConfiguration => p.characteristic.isZero
@@ -84,6 +86,7 @@ case class FormSolver(executable: String = "form")
       formWriter.close()
     }
 
+    println(s"Running $name process...")
     import sys.process._
     val start = System.nanoTime()
     // overcome huge output of FORM which can't be switched off
@@ -92,7 +95,8 @@ case class FormSolver(executable: String = "form")
     val totalTime = System.nanoTime() - start
 
     // read results
-    val result = SolveResult(readResultsForGCD(conf, inFile, formOut, timeUnit = TimeUnit.MILLISECONDS), totalTime.nanoseconds)
+    println(s"Reading $name results...")
+    val result = SolveResult(importGcdResults(conf, inFile, formOut, timeUnit = TimeUnit.MILLISECONDS), totalTime.nanoseconds)
 
     // remove tmp files
     if (tmpFileManager.deleteOnExit) {
@@ -103,5 +107,33 @@ case class FormSolver(executable: String = "form")
     }
 
     result
+  }
+}
+
+
+object FormSolver {
+
+  /** Command line options for FORM solver */
+  trait Cli {
+    this: ScallopConfBase =>
+
+    val withFORM = toggle(
+      name = "form",
+      default = Some(false),
+      descrYes = "FORM (https://www.nikhef.nl/~form/)"
+    )
+
+    val formExec = opt[String](
+      name = "form-exec",
+      descr = "Path to FORM executable",
+      default = Some("form"),
+      noshort = true
+    )
+
+    def mkFORMSolver()(implicit tempFileManager: TempFileManager): Option[FormSolver] =
+      if (withFORM())
+        Some(FormSolver(formExec()))
+      else
+        None
   }
 }

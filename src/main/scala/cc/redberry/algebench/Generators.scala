@@ -101,10 +101,10 @@ object Generators {
       var i = 0
       do {
         val deg = random.nextInt(sumDegree)
-        exponents(variables(i)) = deg
+        exponents(variables(i)) += deg
         sumDegree -= deg
         i += 1
-      } while (sumDegree > 0)
+      } while (sumDegree > 0 && i < nVariables)
 
       exponents
     }

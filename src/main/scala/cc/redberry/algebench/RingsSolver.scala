@@ -1,10 +1,13 @@
 package cc.redberry.algebench
 
 import java.nio.file.{Files, Paths}
+import java.util
 
-import cc.redberry.algebench.Problems.{PolynomialFactorization, PolynomialGCD, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
-import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardGcdSolver}
+import cc.redberry.algebench.Problems.{PolynomialFactorization, PolynomialFactorizationConfiguration, PolynomialGCD, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
+import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardFactorizationSolver, StandardGcdSolver}
 import cc.redberry.algebench.Util.{TempFileManager, createTempFile}
+import org.rogach.scallop.ScallopConfBase
+
 import scala.concurrent.duration._
 
 /**
@@ -12,7 +15,9 @@ import scala.concurrent.duration._
   */
 case class RingsSolver(executable: String = "rings.repl")
                       (implicit tmpFileManager: TempFileManager)
-  extends Solver with StandardGcdSolver {
+  extends Solver
+    with StandardGcdSolver
+    with StandardFactorizationSolver {
   override val name: String = "Rings"
 
   /** Whether software is applicable to given problem */
@@ -23,7 +28,7 @@ case class RingsSolver(executable: String = "rings.repl")
   override def innerSolve(problem: ProblemData): SolveResult = {
     problem match {
       case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
-      case _ => ???
+      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file)
     }
   }
 
@@ -31,14 +36,14 @@ case class RingsSolver(executable: String = "rings.repl")
     val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
-
-    val ringsTempOut = createTempFile("ringsGCD.out").getAbsolutePath
+    val ringsOut = createTempFile("ringsGCD.out").getAbsolutePath
+    val ringsTmp = createTempFile("ringsTmp.out").getAbsolutePath
 
     val code =
       s"""
       import java.io._
       import scala.io._
-      val output = new PrintWriter(new File("$ringsTempOut"))
+      val output = new PrintWriter(new File("$ringsOut"))
       try {
         implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
         for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
@@ -61,6 +66,56 @@ case class RingsSolver(executable: String = "rings.repl")
       exit
       """
 
+    Files.write(Paths.get(ringsTmp), util.Arrays.asList(code.split("\n"): _*))
+    println(s"Running $name process...")
+    import scala.sys.process._
+    val start = System.nanoTime()
+    s"$executable $ringsTmp" !
+    val totalTime = System.nanoTime() - start
+
+    println(s"Reading $name results...")
+    // read results
+    val result = SolveResult(importGcdResults(conf, inFile, ringsOut), totalTime.nanoseconds)
+
+    // remove tmp files
+    if (tmpFileManager.deleteOnExit) {
+      Files.delete(Paths.get(ringsOut))
+      Files.delete(Paths.get(ringsTmp))
+    }
+
+    result
+  }
+
+  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String): SolveResult = {
+    val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
+    val variables = conf.variables.map(v => s""""$v"""").mkString(",")
+
+    val ringsTempOut = createTempFile("ringsFactor.out").getAbsolutePath
+    val code =
+      s"""
+      import java.io._
+      import scala.io._
+      val output = new PrintWriter(new File("$ringsTempOut"))
+      try {
+        implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
+        for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+          val tabDelim = line.split("\\t")
+          val problemId = tabDelim(0)
+
+          val poly = ring(tabDelim(2))
+
+          val start = System.nanoTime()
+          val factors = ring.factor(poly)
+          val elapsed = System.nanoTime() - start
+
+          output.println( (Seq(problemId, elapsed) ++ factors.map(f => ring.show(f)) ).mkString("\\t"))
+        }
+      } finally {
+        output.close()
+      }
+      exit
+      """
+
     val ringsProcess = new ProcessBuilder(executable)
       .redirectErrorStream(true)
       .start()
@@ -73,12 +128,39 @@ case class RingsSolver(executable: String = "rings.repl")
     val totalTime = System.nanoTime() - start
 
     // read results
-    val result = SolveResult(readResultsForGCD(conf, inFile, ringsTempOut), totalTime.nanoseconds)
+    val result = SolveResult(importFactorizationResults(conf, inFile, ringsTempOut), totalTime.nanoseconds)
 
     // remove tmp files
     if (tmpFileManager.deleteOnExit)
       Files.delete(Paths.get(ringsTempOut))
 
     result
+  }
+}
+
+object RingsSolver {
+
+  /** Command line options for Rings solver */
+  trait Cli {
+    this: ScallopConfBase =>
+
+    val withRings = toggle(
+      name = "rings",
+      default = Some(false),
+      descrYes = "Rings (http://ringsalgebra.io)"
+    )
+
+    val ringsExec = opt[String](
+      name = "rings-exec",
+      descr = "Path to Rings executable",
+      default = Some("rings.repl"),
+      noshort = true
+    )
+
+    def mkRingsSolver()(implicit tempFileManager: TempFileManager): Option[RingsSolver] =
+      if (withRings())
+        Some(RingsSolver(ringsExec()))
+      else
+        None
   }
 }

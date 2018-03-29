@@ -12,6 +12,7 @@ object Problems {
   import cc.redberry.algebench.Generators._
   import io.circe.generic.auto._
 
+  /** Enum problem type */
   sealed trait ProblemType
   case object PolynomialGCD extends ProblemType
   case object PolynomialFactorization extends ProblemType
@@ -45,11 +46,18 @@ object Problems {
     override val problemType: ProblemType = PolynomialFactorization
   }
 
+  /**
+    * @param configuration configuration
+    * @param file          file with encoded problems
+    */
   final case class ProblemData(configuration: ProblemConfiguration, file: String) {
     val problemType: ProblemType = configuration.problemType
   }
 
   object ProblemData {
+    /**
+      * Decode problem data from file
+      */
     def fromFile(filePath: String): ProblemData = {
       val reader = new BufferedReader(new FileReader(filePath))
       val header =
@@ -68,63 +76,9 @@ object Problems {
     }
   }
 
-  import io.circe._, io.circe.generic.semiauto._
+  import io.circe._
+  import io.circe.generic.semiauto._
+
   implicit val pbDecoder: Decoder[ProblemConfiguration] = deriveDecoder[ProblemConfiguration]
   implicit val pbEncoder: Encoder[ProblemConfiguration] = deriveEncoder[ProblemConfiguration]
-
-  //  case class StoredProblemData[+Type <: ProblemType](problemType: Type,
-  //                                                     problemConfiguration: ProblemConfiguration[Type],
-  //                                                     filePath: String)
-  //
-  //
-  //  def importProblem(filePath: String): StoredProblemData = {
-  //    val reader = new BufferedReader(new FileReader(filePath))
-  //    val firstLine =
-  //      try {
-  //        reader.readLine()
-  //      } catch {
-  //        case e: Exception => throw new RuntimeException(e)
-  //      } finally {
-  //        reader.close()
-  //      }
-  //
-  //
-  //  }
-
-  //
-  //
-  //  object ProblemType {
-  //    def deserialize(string: String): ProblemType =
-  //      string.toLowerCase match {
-  //        case "polynomialgcd" => PolynomialGCD
-  //      }
-  //  }
-  //
-  //  case object PolynomialGCD extends ProblemType
-  //
-  //  case object PolynomialFactorization extends ProblemType
-  //
-  //
-  //  type Poly = MultivariatePolynomial[IntZ]
-  //
-  //  sealed trait ProblemSet {
-  //    def name: String
-  //
-  //    def dumpToFile(): Unit
-  //
-  //  }
-
-  //  class PolynomialGCD(val nWarmUps: Int, val problems: Seq[(Poly, Poly, Poly)])
-
-
-  //  class PolynomialGCD(nProblems: Int, nWarmUps: Int,
-  //                      gcds: PolynomialsDistribution,
-  //                      cofactors: PolynomialsDistribution) {
-  //    val problems: Seq[(Poly, Poly, Poly)] = {
-  //      (0 until nProblems).map(_ => {
-  //        val gcd = gcds.sample()
-  //        (gcd * cofactors.sample(), gcd * cofactors.sample(), gcd)
-  //      })
-  //    }
-  //  }
 }

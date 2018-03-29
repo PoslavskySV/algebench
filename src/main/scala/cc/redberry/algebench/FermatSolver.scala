@@ -9,12 +9,13 @@ import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardGcdSolver}
 import cc.redberry.algebench.Util.TempFileManager
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
+import org.rogach.scallop.ScallopConfBase
 
 import scala.concurrent.duration._
 import scala.io.Source
 
 /**
-  *
+  * Fermat solver
   */
 case class FermatSolver(executable: String = "fer64")
                        (implicit tmpFileManager: TempFileManager)
@@ -71,7 +72,7 @@ case class FermatSolver(executable: String = "fer64")
 
     import sys.process._
     val start = System.nanoTime()
-    // omg, I wish my eyes not seen this...
+    // omg, I wish my eyes not seen this... will move this to Scala in future
     (s"$executable"
       #< new File(ferIn)
       #| Seq("awk", """/`$/{printf "%s ", $0; next} {print}""")
@@ -86,7 +87,11 @@ case class FermatSolver(executable: String = "fer64")
     val totalTime = System.nanoTime() - start
 
     // read results
-    val result = SolveResult(readResultsForGCD(conf, inFile, ferOut, parseHelper = (s, r) => FermatSolver.parseFermat(s)(r), timeUnit = TimeUnit.MILLISECONDS), totalTime.nanoseconds)
+    val result = SolveResult(
+      importGcdResults(conf, inFile, ferOut,
+        parseHelper = (s, r) => FermatSolver.parseFermat(s)(r),
+        timeUnit = TimeUnit.MILLISECONDS),
+      totalTime.nanoseconds)
 
     // remove tmp files
     if (tmpFileManager.deleteOnExit) {
@@ -167,4 +172,27 @@ object FermatSolver {
     result
   }
 
+  /** Command line options for Fermat solver */
+  trait Cli {
+    this: ScallopConfBase =>
+
+    val withFermat = toggle(
+      name = "fermat",
+      default = Some(false),
+      descrYes = "Fermat (http://home.bway.net/lewis/)"
+    )
+
+    val fermatExec = opt[String](
+      name = "fermat-exec",
+      descr = "Path to Fermat executable",
+      default = Some("fer64"),
+      noshort = true
+    )
+
+    def mkFermatSolver()(implicit tempFileManager: TempFileManager): Option[FermatSolver] =
+      if (withFermat())
+        Some(FermatSolver(fermatExec()))
+      else
+        None
+  }
 }

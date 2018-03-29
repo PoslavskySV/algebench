@@ -4,12 +4,13 @@ import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import cc.redberry.algebench.Util.TempFileManager
+import cc.redberry.rings.poly.multivar.MultivariateSquareFreeFactorization
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
 import org.rogach.scallop._
 
 import scala.collection.parallel.ForkJoinTaskSupport
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.Random
@@ -100,196 +101,138 @@ object Cli {
     )
   }
 
-  trait RingsSolverOpts {
+  trait UniformDistributions {
     this: ScallopConfBase =>
+    banner("\nGenerates polynomials with uniformly distributed exponents")
 
-    val withRings = toggle(
-      name = "rings",
-      default = Some(false),
-      descrYes = "Rings (http://ringsalgebra.io)"
-    )
+    val minSize = opt[Int](
+      descr = "Minimal number of terms in factors",
+      noshort = true,
+      default = Some(100),
+      validate = 0 <)
 
-    val ringsExec = opt[String](
-      name = "rings-exec",
-      descr = "Path to Rings executable",
-      default = Some("rings.repl"),
-      noshort = true
-    )
+    val maxSize = opt[Int](
+      descr = "Maximal number of terms in factors",
+      noshort = true,
+      default = Some(100),
+      validate = 0 <)
 
-    def mkRingsSolver()(implicit tempFileManager: TempFileManager): Option[RingsSolver] =
-      if (withRings())
-        Some(RingsSolver(ringsExec()))
-      else
-        None
+    val size = opt[Int](
+      descr = "Size of factors and gcd",
+      default = None,
+      validate = 0 <)
+
+    val minDegree = opt[Int](
+      descr = "Minimal exponent of each variable in monomials",
+      default = Some(10),
+      validate = 0 <)
+
+    val maxDegree = opt[Int](
+      descr = "Maximal exponent of each variable in monomials",
+      default = Some(20),
+      validate = 0 <)
+
+    footer("\n")
   }
 
-  trait MathematicaSolverOpts {
+  trait SharpDistributions {
     this: ScallopConfBase =>
+    banner("\nGenerates polynomials with sharp exponents")
 
-    val withMathematica = toggle(
-      name = "mathematica",
-      default = Some(false),
-      descrYes = "Wolfram Mathematica"
-    )
+    val minSize = opt[Int](
+      descr = "Minimal number of terms in factors",
+      noshort = true,
+      default = None,
+      validate = 0 <)
 
-    val mmaExec = opt[String](
-      name = "mathematica-exec",
-      descr = "Path to Mathematica executable",
-      default = Some("mathematica"),
-      noshort = true
-    )
+    val maxSize = opt[Int](
+      descr = "Maximal number of terms in factors",
+      noshort = true,
+      default = None,
+      validate = 0 <)
 
-    def mkMathematicaSolver()(implicit tempFileManager: TempFileManager): Option[MathematicaSolver] =
-      if (withMathematica())
-        Some(MathematicaSolver(mmaExec()))
-      else
-        None
+    val size = opt[Int](
+      descr = "Size of factors and gcd",
+      default = None,
+      validate = 0 <)
+
+    val totalDegree = opt[Int](
+      descr = "Total degree of polynomials",
+      default = Some(10),
+      validate = 0 <)
+
+    footer("\n")
   }
 
-  trait FormSolverOpts {
+  trait BaseFactorizationOpts
+    extends BasePolyGenOpts {
     this: ScallopConfBase =>
 
-    val withFORM = toggle(
-      name = "form",
+    val nFactors = opt[Int](
+      name = "n-factors",
+      required = true,
+      noshort = true,
+      descr = "Number of factors"
+    )
+
+    val trivialFactorization = toggle(
+      name = "no-factors",
       default = Some(false),
-      descrYes = "FORM"
+      descrYes = "All input polynomials are irreducible"
     )
-
-    val formExec = opt[String](
-      name = "form-exec",
-      descr = "Path to FORM executable",
-      default = Some("form"),
-      noshort = true
-    )
-
-    def mkFORMSolver()(implicit tempFileManager: TempFileManager): Option[FormSolver] =
-      if (withFORM())
-        Some(FormSolver(formExec()))
-      else
-        None
   }
 
-  trait FermatSolverOpts {
-    this: ScallopConfBase =>
-
-    val withFermat = toggle(
-      name = "fermat",
-      default = Some(false),
-      descrYes = "Fermat"
-    )
-
-    val fermatExec = opt[String](
-      name = "fermat-exec",
-      descr = "Path to Fermat executable",
-      default = Some("fer64"),
-      noshort = true
-    )
-
-    def mkFermatSolver()(implicit tempFileManager: TempFileManager): Option[FermatSolver] =
-      if (withFermat())
-        Some(FermatSolver(fermatExec()))
-      else
-        None
-  }
-
-  trait SingularSolverOpts {
-    this: ScallopConfBase =>
-
-    val withSingular = toggle(
-      name = "singular",
-      default = Some(false),
-      descrYes = "Singular"
-    )
-
-    val singularExec = opt[String](
-      name = "singular-exec",
-      descr = "Path to Singular executable",
-      default = Some("singular"),
-      noshort = true
-    )
-
-    def mkSingularSolver()(implicit tempFileManager: TempFileManager): Option[SingularSolver] =
-      if (withSingular())
-        Some(SingularSolver(singularExec()))
-      else
-        None
-  }
-
+  /**
+    * Global comand line configuration
+    *
+    * @param arguments
+    */
   class GlobalConf(arguments: Seq[String]) extends ScallopConf(arguments) {
+    version("algebench v1.0: a tool for benchmarking polynomial software")
+    banner(
+      """
+        |Usage: algebench action [OPTION]...
+        |Options:""".stripMargin)
+    footer("\nFor all other tricks, consult the documentation!")
+
+
     val keepTempFiles = toggle(
       name = "keep-temp-files",
       default = Some(false)
     )
 
     // generating problems
-    val generateProblems = new Subcommand("generate") with RandomOpt {
+    val generateProblems = new Subcommand("generate")
+      with RandomOpt {
+      banner(
+        """
+          |Usage: algebench generate [gcd|factor] [OPTIONS] output_file
+          |Generates problem data and writes it to output_file
+          |""".stripMargin)
 
       // generating GCD problems
       val gcdProblem = new Subcommand("gcd") {
+        banner(
+          """
+            |Usage: algebench generate gcd [uniform|sharp|custom] [OPTIONS] output_file
+            |Generates gcd problems data using specified method (uniform/sharp/custom) and writes to output_file
+            |""".stripMargin)
 
         // use simple uniform distribution
-        val uniform = new Subcommand("uniform") with BasePolyGenOpts {
-          banner("Generates polynomials with uniformly distributed exponents")
-          val minSize = opt[Int](
-            descr = "Minimal number of terms in factors",
-            noshort = true,
-            default = Some(100),
-            validate = 0 <)
-
-          val maxSize = opt[Int](
-            descr = "Maximal number of terms in factors",
-            noshort = true,
-            default = Some(100),
-            validate = 0 <)
-
-          val size = opt[Int](
-            descr = "Size of factors and gcd",
-            default = None,
-            validate = 0 <)
-
-          val minDegree = opt[Int](
-            descr = "Minimal exponent of each variable in monomials",
-            default = Some(10),
-            validate = 0 <)
-
-          val maxDegree = opt[Int](
-            descr = "Maximal exponent of each variable in monomials",
-            default = Some(20),
-            validate = 0 <)
-        }
+        val uniform = new Subcommand("uniform")
+          with BasePolyGenOpts
+          with UniformDistributions
         addSubcommand(uniform)
 
         // use simple sharp distribution
-        val sharp = new Subcommand("sharp") with BasePolyGenOpts {
-          banner("Generates polynomials with sharp exponents")
-
-          val minSize = opt[Int](
-            descr = "Minimal number of terms in factors",
-            noshort = true,
-            default = None,
-            validate = 0 <)
-
-          val maxSize = opt[Int](
-            descr = "Maximal number of terms in factors",
-            noshort = true,
-            default = None,
-            validate = 0 <)
-
-          val size = opt[Int](
-            descr = "Size of factors and gcd",
-            default = None,
-            validate = 0 <)
-
-          val totalDegree = opt[Int](
-            descr = "Total degree of polynomials",
-            default = Some(10),
-            validate = 0 <)
-        }
+        val sharp = new Subcommand("sharp")
+          with BasePolyGenOpts
+          with SharpDistributions
         addSubcommand(sharp)
 
         // use custom distributions
         val custom = new Subcommand("custom") with BasePolyGenOpts {
-          banner("Generates polynomials with sharp exponents")
+          banner("\nGenerates polynomials with custom distributions")
 
           val factor1 = opt[String](
             descr = "JSON string for first factor distribution",
@@ -303,24 +246,61 @@ object Cli {
             descr = "JSON string for gcd distribution",
             required = true)
 
+          footer("\n")
         }
         addSubcommand(custom)
       }
       addSubcommand(gcdProblem)
+
+      val factorProblems = new Subcommand("factor") {
+        banner(
+          """
+            |Usage: algebench generate factor [uniform|sharp|custom] [OPTIONS] output_file
+            |Generates factorization problems data using specified method (uniform/sharp/custom) and writes to output_file
+            |""".stripMargin)
+
+        // use simple uniform distribution
+        val uniform = new Subcommand("uniform")
+          with BaseFactorizationOpts
+          with UniformDistributions
+        addSubcommand(uniform)
+
+        // use simple sharp distribution
+        val sharp = new Subcommand("sharp")
+          with BaseFactorizationOpts
+          with SharpDistributions
+        addSubcommand(sharp)
+
+        // use custom distributions
+        val custom = new Subcommand("custom")
+          with BaseFactorizationOpts {
+          banner("Generates polynomials with custom distributions")
+          val dist = opt[String](
+            descr = "JSON string for factor distribution",
+            required = true)
+        }
+        addSubcommand(custom)
+      }
+      addSubcommand(factorProblems)
     }
     addSubcommand(generateProblems)
 
 
     // solve generated problems
     val solveProblems = new Subcommand("solve")
-      with RingsSolverOpts
-      with MathematicaSolverOpts
-      with FormSolverOpts
-      with FermatSolverOpts
-      with SingularSolverOpts
+      with RingsSolver.Cli
+      with MathematicaSolver.Cli
+      with FormSolver.Cli
+      with FermatSolver.Cli
+      with SingularSolver.Cli
       with SingleInputOpt
       with SingleOutputOpt {
-      banner("Run tools on specified benchmarks")
+      banner(
+        """
+          |Usage: algebench solve [OPTIONS] input_file output_file
+          |Solves generated probles with provided solvers and writes timing statistics to output_file
+          |""".stripMargin)
+
 
       val nThreads = opt[Int](
         descr = "Number of threads for running solvers, if euqual to 1 (default) all solvers will be run sequentially",
@@ -331,12 +311,18 @@ object Cli {
       )
 
       def mkSolvers()(implicit tempFileManager: TempFileManager): Seq[Option[Solver]] =
-        Seq(mkRingsSolver(), mkMathematicaSolver(), mkFORMSolver(), mkFermatSolver(), mkSingularSolver())
+        Seq(
+          mkRingsSolver(),
+          mkMathematicaSolver(),
+          mkFORMSolver(),
+          mkFermatSolver(),
+          mkSingularSolver())
     }
     addSubcommand(solveProblems)
 
     verify()
   }
+
 
   /**
     * The main entrypoint
@@ -345,37 +331,29 @@ object Cli {
     import io.circe.parser.decode
     import io.circe.syntax._
 
-//        val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
-//          "-n", "5",
-//          "--characteristic", "4099",
-//          "--n-variables", "3",
-//          "--min-size", "2", "--max-size", "3",
-//          "--bit-length", "2", "gcd.problems"))
+    def decodeDistribution(json: String) = {
+      decode[PolynomialsDistribution](json) match {
+        case Left(err) => throw new RuntimeException("broken json: " + err)
+        case Right(dist) => dist
+      }
+    }
 
-    //        val runConfiguration = new GlobalConf(Array("generate", "gcd", "uniform",
-    //          "-n", "1000",
-    //          "--characteristic", "4099",
-    //          "--n-variables", "5",
-    //          "--min-size", "100", "--max-size", "100",
-    //          "--bit-length", "100", "gcd.problems"))
-    val runConfiguration = new GlobalConf(Array(
-      "solve",
-//      "--mathematica", "--mathematica-exec", "/Applications/Mathematica.app/Contents/MacOS/MathematicaScript",
-//      "--rings", "--rings-exec", "/Users/poslavskysv/Projects/redberry2/rings/rings.repl/rings.repl",
-            "--singular", "--singular-exec", "/Applications/Singular.app/Contents/bin/Singular",
-      //            "--form", "--form-exec", "form",
-      //      "--fermat", "--fermat-exec", "/Users/poslavskysv/Downloads/ferm6/fer64",
-      "gcd.problems", "out"))
+    val runConfiguration = new GlobalConf(args)
 
-    //    println(runConfiguration.printHelp())
-    //    System.exit(0)
-    // temp file manager
-    implicit val fileManaged: TempFileManager = TempFileManager(runConfiguration.keepTempFiles())
+    def helpAndReturn(header: String = "", exitCode: Int = 0): Unit = {
+      println(
+        s"""
+           | $header
+           | ${runConfiguration.printHelp()}
+      """.stripMargin)
+      System.exit(exitCode)
+    }
+
+    implicit val fileManaged: TempFileManager = TempFileManager(!runConfiguration.keepTempFiles())
 
     runConfiguration.subcommands match {
-
       case List() =>
-        runConfiguration.printHelp()
+        helpAndReturn()
 
       case runConfiguration.generateProblems :: generateSpec => {
         implicit val random: Random = new Random(runConfiguration.generateProblems.rndSeed())
@@ -409,14 +387,7 @@ object Cli {
                 (polys, polys, polys)
 
               case p@gcdProblem.custom =>
-                def decodeJSON(json: String) = {
-                  decode[PolynomialsDistribution](json) match {
-                    case Left(err) => throw new RuntimeException("broken json: " + err)
-                    case Right(dist) => dist
-                  }
-                }
-
-                (decodeJSON(p.factor1()), decodeJSON(p.factor2()), decodeJSON(p.gcd()), p.output())
+                (decodeDistribution(p.factor1()), decodeDistribution(p.factor2()), decodeDistribution(p.gcd()), p.output())
             }
 
             // common opts
@@ -440,13 +411,86 @@ object Cli {
                 val gcd = gcdConfig.gcd.sample
                 val f1 = gcd * gcdConfig.factor_1.sample
                 val f2 = gcd * gcdConfig.factor_2.sample
-                writer.println(Seq(iProblem, f1.toString(gcdConfig.variables), f2.toString(gcdConfig.variables), gcd.toString(gcdConfig.variables)).mkString("\t"))
+                writer.write(iProblem.toString)
+                writer.write("\t")
+                writer.write(f1.toString(gcdConfig.variables))
+                writer.write("\t")
+                writer.write(f2.toString(gcdConfig.variables))
+                writer.write("\t")
+                writer.write(gcd.toString(gcdConfig.variables))
+                writer.write("\n")
+                //writer.println(Seq(iProblem, f1.toString(gcdConfig.variables), f2.toString(gcdConfig.variables), gcd.toString(gcdConfig.variables)).mkString("\t"))
               }
             } finally {
               writer.close()
             }
 
-          case _ => ???
+          case runConfiguration.generateProblems.factorProblems :: method :: Nil =>
+            // generate Factorization problems
+            val factorProblem = runConfiguration.generateProblems.factorProblems
+
+            val dist = (method match {
+              case p@factorProblem.uniform =>
+                implicit val ring: Ring[IntZ] = Zp(p.characteristic())
+                // coefficients distribution
+                implicit val coefficients: CoefficientsDistribution = CoefficientsDistribution.uniform(p.bitLength())
+                // exponents distribution
+                implicit val exponents: ExponentsDistribution = ExponentsDistribution.uniform(p.minDegree(), p.maxDegree())
+                // polynomials distribution
+                PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+
+              case p@factorProblem.sharp =>
+                implicit val ring: Ring[IntZ] = Zp(p.characteristic())
+                // coefficients distribution
+                implicit val coefficients: CoefficientsDistribution = CoefficientsDistribution.uniform(p.bitLength())
+                // exponents distribution
+                implicit val exponents: ExponentsDistribution = ExponentsDistribution.sharp(p.totalDegree())
+                // polynomials distribution
+                PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+
+              case p@factorProblem.custom =>
+                decodeDistribution(p.dist())
+            }).noMonomialContent()
+
+            // common opts
+            val commonOpts = method.asInstanceOf[BaseFactorizationOpts]
+
+            val factorConfig = PolynomialFactorizationConfiguration(
+              commonOpts.characteristic(),
+              defaultVars(commonOpts.nVariables()),
+              commonOpts.nProblems(),
+              IntDistribution.fixed(commonOpts.nFactors()),
+              dist)
+
+            val outFile = new File(commonOpts.output())
+            if (outFile.exists())
+              outFile.delete()
+
+            val writer = new PrintWriter(Files.newBufferedWriter(outFile.toPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
+            try {
+              writer.println("#" + factorConfig.asInstanceOf[ProblemConfiguration].asJson.noSpaces)
+
+              writer.println(("#problemID" :: "trivial" :: "polynomial" :: (1 to commonOpts.nFactors()).map(i => s"factor_$i").toList).mkString("\t"))
+              for (iProblem <- 0 until factorConfig.nProblems) {
+                var factors: List[MultivariatePolynomial[IntZ]] = null
+                var poly: MultivariatePolynomial[IntZ] = null
+                do {
+                  factors = (1 to commonOpts.nFactors()).map(_ => dist.sample).toList
+                  poly = factors.foldLeft(factors.head.createOne)(_ * _)
+                } while (!MultivariateSquareFreeFactorization.isSquareFree[Monomial[IntZ], MultivariatePolynomial[IntZ]](poly))
+
+                writer.println(
+                  (iProblem
+                    :: commonOpts.trivialFactorization()
+                    :: poly.toString(factorConfig.variables)
+                    :: factors.map(_.toString(factorConfig.variables))
+                    ).mkString("\t"))
+              }
+            } finally {
+              writer.close()
+            }
+
+          case _ => helpAndReturn(header = s"Unknown method: $generateSpec")
         }
       }
 
@@ -486,6 +530,11 @@ object Cli {
             solvers // solve sequentially
           ).map(s => (s.name, s.solve(problemData))).seq
 
+        println("\nShort statistics: ")
+        results.foreach { case (soft, stat) =>
+          println(s"  $soft: ${Util.prettyDuration(stat.individualResults.map(_._2._2.toNanos).sum.nanoseconds)} ")
+        }
+
         // results as dataset (to write in the file)
         val dataset: Map[Int, Map[String, (FiniteDuration, Boolean)]] =
           results
@@ -510,9 +559,7 @@ object Cli {
           writer.close()
         }
 
-      case Nil =>
-
-      case _ =>
+      case _ => helpAndReturn(header = s"Unknown command: ${runConfiguration.subcommand}")
     }
   }
 }
