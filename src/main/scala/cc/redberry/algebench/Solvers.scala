@@ -28,7 +28,7 @@ object Solvers {
       println(s"Running $name...")
       val result = innerSolve(problem)
       println(s"Total   $name process time ${Util.prettyDuration(result.totalTime)}")
-      println(s"Running $name... done " + Util.prettyDuration(result.individualResults.map(_._2._2.toNanos).sum.nanoseconds) + " elapsed")
+      println(s"Running $name... done. Total benchmarking time: " + Util.prettyDuration(result.individualResults.map(_._2._2.toNanos).sum.nanoseconds) + "")
       result
     }
 

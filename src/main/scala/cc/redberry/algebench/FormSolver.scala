@@ -45,6 +45,7 @@ case class FormSolver(executable: String = "form")
 
     val formWriter = new PrintWriter(Files.newBufferedWriter(Paths.get(formIn)))
     try {
+      formWriter.println("#-")
       formWriter.println("Off statistics;")
       if (!conf.characteristic.isZero)
         formWriter.println(s"modulus ${conf.characteristic};")
@@ -56,29 +57,27 @@ case class FormSolver(executable: String = "form")
         val poly1 = tabDelim(1)
         val poly2 = tabDelim(2)
 
-        formWriter.println(s"Local a$problemId = $poly1;")
-        formWriter.println(s"Local b$problemId = $poly2;")
-        formWriter.println(".sort")
 
-        formWriter.println()
+        val code =
+          s"""
+             |
+             | #$$poly1 = $poly1;
+             | #$$poly2 = $poly2;
+             |
+             | #$$tstart = `timer_';
+             | #$$gcd = gcd_($$poly1, $$poly2);
+             | #$$tend = `timer_';
+             |
+             | #$$dt = ($$tend - $$tstart);
+             | #write <$formTmp1> "%s\\t%$$\\t%$$" , $problemId, $$dt, $$gcd
+             | #system tr -d " \\n\\r" < $formTmp1 > $formTmp2
+             | #system tr -d "\\\\" < $formTmp2 >> $formOut
+             | #system echo "" >> $formOut
+             | #remove <$formTmp1>
+             |
+        """.stripMargin
 
-        formWriter.println(s"#$$tstart$problemId = `timer_';")
-        formWriter.println(s"Local gcd$problemId = gcd_(a$problemId, b$problemId);")
-        formWriter.println(".sort")
-        formWriter.println("#$telapsed%s = (`timer_' - `$tstart%s');".format(problemId, problemId))
-
-        formWriter.println()
-
-        formWriter.println(".sort")
-        formWriter.println("Format nospaces;")
-        formWriter.println(s"#write <$formTmp1> " + "\"%s\\t%$\\t%E\" ," + s"$problemId," + "$telapsed%s".format(problemId) + s",gcd$problemId")
-        formWriter.println("#system tr -d \" \\n\\r\" " + s"< $formTmp1 > $formTmp2")
-        formWriter.println("#system tr -d \"\\\\\" " + s"< $formTmp2 >> $formOut")
-        formWriter.println("#system echo \"\" >> " + formOut)
-        formWriter.println(s"#remove <$formTmp1>")
-        formWriter.println(".sort")
-
-        formWriter.println()
+        formWriter.println(code)
       }
 
       formWriter.println(".end")
@@ -89,9 +88,7 @@ case class FormSolver(executable: String = "form")
     println(s"Running $name process...")
     import sys.process._
     val start = System.nanoTime()
-    // overcome huge output of FORM which can't be switched off
-    val devNull = new OutputStream {override def write(b: Int): Unit = {}}
-    (s"$executable -q $formIn" #> devNull) !
+    s"$executable -q $formIn" !
     val totalTime = System.nanoTime() - start
 
     // read results

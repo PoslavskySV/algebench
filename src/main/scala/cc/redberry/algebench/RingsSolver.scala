@@ -41,30 +41,34 @@ case class RingsSolver(executable: String = "rings.repl")
 
     val code =
       s"""
-      import java.io._
-      import scala.io._
-      val output = new PrintWriter(new File("$ringsOut"))
-      try {
-        implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
-        for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
-          val tabDelim = line.split("\\t")
-          val problemId = tabDelim(0)
-
-          val poly1 = ring(tabDelim(1))
-          val poly2 = ring(tabDelim(2))
-          val expectedGCD = ring(tabDelim(3))
-
-          val start = System.nanoTime()
-          val gcd = ring.gcd(poly1, poly2)
-          val elapsed = System.nanoTime() - start
-
-          output.println(Seq(problemId, elapsed, ring.show(gcd)).mkString("\\t"))
-        }
-      } finally {
-        output.close()
-      }
-      exit
-      """
+         |
+         | println("... compiled")
+         |
+         | import java.io._
+         | import scala.io._
+         | val output = new PrintWriter(new File("$ringsOut"))
+         | try {
+         | implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
+         | for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+         |   val tabDelim = line.split("\\t")
+         |   val problemId = tabDelim(0)
+         |
+         |   val poly1 = ring(tabDelim(1))
+         |   val poly2 = ring(tabDelim(2))
+         |   val expectedGCD = ring(tabDelim(3))
+         |
+         |   val start = System.nanoTime()
+         |   val gcd = ring.gcd(poly1, poly2)
+         |   val elapsed = System.nanoTime() - start
+         |
+         |   output.println(Seq(problemId, elapsed, ring.show(gcd)).mkString("\\t"))
+         |   }
+         | } finally {
+         |    output.close()
+         | }
+         |
+         | exit
+      """.stripMargin
 
     Files.write(Paths.get(ringsTmp), util.Arrays.asList(code.split("\n"): _*))
     println(s"Running $name process...")
