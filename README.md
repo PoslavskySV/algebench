@@ -60,7 +60,7 @@ Generates polynomials with uniformly distributed exponents
   -c, --characteristic  <arg>   Field characteristic
       --max-degree  <arg>       Maximal exponent of each variable in monomials
       --max-size  <arg>         Maximal number of terms in factors
-  -m, --min-degree  <arg>       Minimal exponent of each variable in monomials
+      --min-degree  <arg>       Minimal exponent of each variable in monomials
       --min-size  <arg>         Minimal number of terms in factors
   -n, --n-problems  <arg>       Number of problems to generate
       --n-variables  <arg>      Number of variables
@@ -82,7 +82,7 @@ Generates polynomials with sharp exponents
   -n, --n-problems  <arg>       Number of problems to generate
       --n-variables  <arg>      Number of variables
   -s, --size  <arg>             Size of factors and gcd
-  -t, --total-degree  <arg>     Total degree of polynomials
+      --total-degree  <arg>     Total degree of polynomials
   -h, --help                    Show help message
 
  trailing arguments:
@@ -119,13 +119,14 @@ Generates polynomials with uniformly distributed exponents
   -c, --characteristic  <arg>   Field characteristic
       --max-degree  <arg>       Maximal exponent of each variable in monomials
       --max-size  <arg>         Maximal number of terms in factors
-  -m, --min-degree  <arg>       Minimal exponent of each variable in monomials
+      --min-degree  <arg>       Minimal exponent of each variable in monomials
       --min-size  <arg>         Minimal number of terms in factors
       --n-factors  <arg>        Number of factors
   -n, --n-problems  <arg>       Number of problems to generate
       --n-variables  <arg>      Number of variables
       --no-factors              All input polynomials are irreducible
       --nono-factors
+  -s, --size  <arg>             Size of factors and gcd
   -h, --help                    Show help message
 
  trailing arguments:
@@ -146,7 +147,7 @@ Generates polynomials with sharp exponents
       --no-factors              All input polynomials are irreducible
       --nono-factors
   -s, --size  <arg>             Size of factors and gcd
-  -t, --total-degree  <arg>     Total degree of polynomials
+      --total-degree  <arg>     Total degree of polynomials
   -h, --help                    Show help message
 
  trailing arguments:
@@ -196,5 +197,6 @@ Solves generated probles with provided solvers and writes timing statistics to o
  trailing arguments:
   input (required)    Input file
   output (required)   Output file
+
 
 ```

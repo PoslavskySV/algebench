@@ -100,10 +100,8 @@ object Cli {
     )
   }
 
-  trait UniformDistributions {
+  trait PolySizeOpts {
     this: ScallopConfBase =>
-    banner("\nGenerates polynomials with uniformly distributed exponents")
-
     val minSize = opt[Int](
       descr = "Minimal number of terms in factors",
       noshort = true,
@@ -121,43 +119,48 @@ object Cli {
       default = None,
       validate = 0 <)
 
+    def getMinSize(): Int = {
+      if (size.isDefined)
+        size()
+      else
+        minSize()
+    }
+
+    def getMaxSize(): Int = {
+      if (size.isDefined)
+        size()
+      else
+        maxSize()
+    }
+  }
+
+  trait UniformDistributions extends PolySizeOpts {
+    this: ScallopConfBase =>
+    banner("\nGenerates polynomials with uniformly distributed exponents")
+
     val minDegree = opt[Int](
       descr = "Minimal exponent of each variable in monomials",
       default = Some(10),
+      noshort = true,
       validate = 0 <=)
 
     val maxDegree = opt[Int](
       descr = "Maximal exponent of each variable in monomials",
       default = Some(20),
+      noshort = true,
       validate = 0 <)
 
     footer("\n")
   }
 
-  trait SharpDistributions {
+  trait SharpDistributions extends PolySizeOpts {
     this: ScallopConfBase =>
     banner("\nGenerates polynomials with sharp exponents")
-
-    val minSize = opt[Int](
-      descr = "Minimal number of terms in factors",
-      noshort = true,
-      default = None,
-      validate = 0 <)
-
-    val maxSize = opt[Int](
-      descr = "Maximal number of terms in factors",
-      noshort = true,
-      default = None,
-      validate = 0 <)
-
-    val size = opt[Int](
-      descr = "Size of factors and gcd",
-      default = None,
-      validate = 0 <)
 
     val totalDegree = opt[Int](
       descr = "Total degree of polynomials",
       default = Some(10),
+      noshort = true,
       validate = 0 <)
 
     footer("\n")
@@ -370,7 +373,7 @@ object Cli {
                 // exponents distribution
                 implicit val exponents: ExponentsDistribution = ExponentsDistribution.uniform(p.minDegree(), p.maxDegree())
                 // polynomials distribution
-                val polys = PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+                val polys = PolynomialsDistribution.uniform(p.nVariables(), p.getMinSize(), p.getMaxSize())
 
                 (polys, polys, polys)
 
@@ -381,7 +384,7 @@ object Cli {
                 // exponents distribution
                 implicit val exponents: ExponentsDistribution = ExponentsDistribution.sharp(p.totalDegree())
                 // polynomials distribution
-                val polys = PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+                val polys = PolynomialsDistribution.uniform(p.nVariables(), p.getMinSize(), p.getMaxSize())
 
                 (polys, polys, polys)
 
@@ -436,7 +439,7 @@ object Cli {
                 // exponents distribution
                 implicit val exponents: ExponentsDistribution = ExponentsDistribution.uniform(p.minDegree(), p.maxDegree())
                 // polynomials distribution
-                PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+                PolynomialsDistribution.uniform(p.nVariables(), p.getMinSize(), p.getMaxSize())
 
               case p@factorProblem.sharp =>
                 implicit val ring: Ring[IntZ] = Zp(p.characteristic())
@@ -445,7 +448,7 @@ object Cli {
                 // exponents distribution
                 implicit val exponents: ExponentsDistribution = ExponentsDistribution.sharp(p.totalDegree())
                 // polynomials distribution
-                PolynomialsDistribution.uniform(p.nVariables(), p.minSize(), p.maxSize())
+                PolynomialsDistribution.uniform(p.nVariables(), p.getMinSize(), p.getMaxSize())
 
               case p@factorProblem.custom =>
                 decodeDistribution(p.dist())
