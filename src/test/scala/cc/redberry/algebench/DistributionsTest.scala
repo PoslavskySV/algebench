@@ -9,11 +9,11 @@ import scala.util.Random
 /**
   *
   */
-class GeneratorsTest {
+class DistributionsTest {
 
   @Test
   def test1(): Unit = {
-    import cc.redberry.algebench.Generators._
+    import cc.redberry.algebench.Distributions._
     import io.circe.generic.auto._
     import io.circe.syntax._
     import io.circe.parser.decode

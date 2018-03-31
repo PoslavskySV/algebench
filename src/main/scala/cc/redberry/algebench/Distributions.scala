@@ -13,9 +13,9 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics
 import scala.util.Random
 
 /**
-  *
+  * Different distributions
   */
-object Generators {
+object Distributions {
 
   import io.circe.generic.auto._
   import io.circe.syntax._
@@ -70,7 +70,7 @@ object Generators {
   /** Generates random degree vectors */
   sealed trait ExponentsDistribution {
     /** next degree vector of given size */
-    def sample(nVariables: Int, random: Random): Array[Int]
+    def sample(nVariables: Int)(implicit random: Random): Array[Int]
   }
 
   object ExponentsDistribution {
@@ -84,14 +84,14 @@ object Generators {
   /** Uniform distribution of exponents in degree vector */
   case class UniformExponentsDistribution(degMin: Int, degMax: Int) extends ExponentsDistribution {
     /** next degree vector of given size */
-    override def sample(nVariables: Int, random: Random): Array[Int] =
-      (0 until nVariables).map(_ => nextInt(degMin, degMax)(random)).toArray
+    override def sample(nVariables: Int)(implicit random: Random): Array[Int] =
+      (0 until nVariables).map(_ => nextInt(degMin, degMax)).toArray
   }
 
   /** Sharp distribution of exponents in degree vector */
   case class SharpExponentsDistribution(totalDegree: Int) extends ExponentsDistribution {
     /** next degree vector of given size */
-    override def sample(nVariables: Int, random: Random): Array[Int] = {
+    override def sample(nVariables: Int)(implicit random: Random): Array[Int] = {
       var sumDegree = totalDegree
       val exponents = new Array[Int](nVariables)
 
@@ -148,7 +148,7 @@ object Generators {
       val nTerms = nTermsDistribution.sample(random)
       for (_ <- 0 to nTerms)
         result.add(new Monomial[IntZ](
-          exponentsDistribution.sample(nVariables, random),
+          exponentsDistribution.sample(nVariables),
           coefficientsDistribution.sample(random)))
       result
     }

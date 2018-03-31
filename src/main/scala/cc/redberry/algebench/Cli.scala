@@ -19,7 +19,7 @@ import scala.util.Random
   */
 object Cli {
 
-  import Generators._
+  import Distributions._
   import Problems._
   import Solvers._
 
@@ -512,6 +512,18 @@ object Cli {
 
         val problemData = ProblemData(problemConfiguration, solveCmd.input())
 
+        // solve with single system and save intermediate result
+        def solve(solver: Solver) = {
+          val result = solver.solve(problemData)
+          val writer = new PrintWriter(Files.newBufferedWriter(Paths.get(solveCmd.output() + "." + solver.name)))
+          try {
+            writer.println(s"problemId\tsuccess\ttiming\n")
+            result.individualResults
+              .foreach { case (i, (s, t)) => writer.println(Seq(i, s, t.toNanos).mkString("\t")) }
+          } finally {writer.close() }
+          result
+        }
+
         // solve all problems
         val results = (
           if (solveCmd.nThreads() > 1) {
@@ -523,7 +535,7 @@ object Cli {
           }
           else
             solvers // solve sequentially
-          ).map(s => (s.name, s.solve(problemData))).seq
+          ).map(s => (s.name, solve(s))).seq
 
         println("\nShort statistics: ")
         results.foreach { case (soft, stat) =>
@@ -531,15 +543,15 @@ object Cli {
         }
 
         // results as dataset (to write in the file)
-        val dataset: Map[Int, Map[String, (FiniteDuration, Boolean)]] =
+        val dataset: Map[Int, Map[String, (Long, Boolean)]] =
           results
             .flatMap { case (name, r) => r.individualResults.toSeq.map(t => ((t._1, name), (t._2._2, t._2._1))) }
             .toMap
             .groupBy(_._1._1)
-            .mapValues(_.toSeq.map(t => (t._1._2, (t._2._1, t._2._2))).toMap)
+            .mapValues(_.toSeq.map(t => (t._1._2, (t._2._1.toNanos, t._2._2))).toMap)
 
-        // names of the software
-        val softwareNames = solvers.map(_.name)
+        // names of the software that succeed with solution
+        val softwareNames = results.map(_._1)
 
         // writing result to file
         val writer = new PrintWriter(Files.newBufferedWriter(Paths.get(solveCmd.output())))
@@ -547,13 +559,18 @@ object Cli {
           val headerRow = (Seq("problemId") ++ softwareNames.flatMap(s => Seq(s, s + "_success"))).mkString("\t")
           writer.println(headerRow)
           for ((problemId, pResults) <- dataset.toSeq.sortBy(_._1)) {
-            val row = (Seq(problemId.toString) ++ softwareNames.flatMap(s => Seq(pResults(s)._1.toNanos, pResults(s)._2))).mkString("\t")
+            val row = (Seq(problemId.toString) ++ softwareNames.flatMap(s => {
+              val t = pResults.getOrElse(s, (-1, false))
+              Seq(if (t._1 == -1) "NaN" else t._1.toString, t._2)
+            })).mkString("\t")
             writer.println(row)
           }
         } finally {
           writer.close()
         }
 
+        // remove tmp individual results
+        softwareNames.foreach(s => Files.deleteIfExists(Paths.get(solveCmd.output() + "." + s)))
       case _ => helpAndReturn(header = s"Unknown command: ${runConfiguration.subcommand}")
     }
   }

@@ -1,6 +1,6 @@
 package cc.redberry.algebench
 
-import cc.redberry.algebench.Generators.PolynomialsDistribution
+import cc.redberry.algebench.Distributions.PolynomialsDistribution
 import cc.redberry.algebench.Problems.PolynomialGCDConfiguration
 import cc.redberry.rings.scaladsl._
 import org.junit.Test
@@ -13,7 +13,7 @@ import scala.util.Random
 class ProblemsTest {
   @Test
   def test1(): Unit = {
-    import cc.redberry.algebench.Generators._
+    import cc.redberry.algebench.Distributions._
     import cc.redberry.algebench.Problems._
     import io.circe.generic.auto._
     import io.circe.syntax._

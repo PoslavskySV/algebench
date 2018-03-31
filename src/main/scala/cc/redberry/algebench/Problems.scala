@@ -9,7 +9,7 @@ import cc.redberry.rings.scaladsl.IntZ
   */
 object Problems {
 
-  import cc.redberry.algebench.Generators._
+  import cc.redberry.algebench.Distributions._
   import io.circe.generic.auto._
 
   /** Enum problem type */
