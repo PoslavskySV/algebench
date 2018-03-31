@@ -2,6 +2,17 @@
 A tool for benchmarking libraries/systems for doing commutative algebra
 
 
+## Installation
+
+With Homebrew: 
+
+```
+brew install PoslavskySV/rings/algebench
+```
+
+Or just clone this repo and type `sbt` to proceed with sbt console.
+
+
 ## Example
 
 Generate a set of GCD problems:
