@@ -126,7 +126,6 @@ Generates polynomials with uniformly distributed exponents
       --n-variables  <arg>      Number of variables
       --no-factors              All input polynomials are irreducible
       --nono-factors
-  -s, --size  <arg>             Size of factors and gcd
   -h, --help                    Show help message
 
  trailing arguments:
