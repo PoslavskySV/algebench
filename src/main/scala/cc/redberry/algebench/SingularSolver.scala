@@ -4,7 +4,7 @@ import java.io.{OutputStream, PrintWriter}
 import java.nio.file.{Files, Paths}
 
 import cc.redberry.algebench.Problems.{PolynomialFactorization, PolynomialFactorizationConfiguration, PolynomialGCD, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
-import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardFactorizationSolver, StandardGcdSolver}
+import cc.redberry.algebench.Solvers._
 import cc.redberry.algebench.Util.{TempFileManager, createTempFile}
 import org.rogach.scallop.ScallopConfBase
 
@@ -25,14 +25,14 @@ case class SingularSolver(executable: String = "Singular")
     case PolynomialGCD | PolynomialFactorization => true
   }
 
-  override def innerSolve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData, limit: Int): SolveResult = {
     problem match {
-      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
-      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file)
+      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
+      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file, limit)
     }
   }
 
-  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
+  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String, limit: Int): SolveResult = {
     val singularIn = createTempFile("singularGCD.in").getAbsolutePath
     val singularOut = createTempFile("singularGCD.out").getAbsolutePath
 
@@ -45,7 +45,7 @@ case class SingularSolver(executable: String = "Singular")
            | link output = "$singularOut";
       """.stripMargin)
 
-      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty).take(limit)) {
         val tabDelim = line.split("\t")
         val problemId = tabDelim(0)
         val poly1 = tabDelim(1)
@@ -88,7 +88,7 @@ case class SingularSolver(executable: String = "Singular")
     result
   }
 
-  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String): SolveResult = {
+  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String, limit: Int): SolveResult = {
     val singularIn = createTempFile("singularFactor.in").getAbsolutePath
     val singularOut = createTempFile("singularFactor.out").getAbsolutePath
 
@@ -101,7 +101,7 @@ case class SingularSolver(executable: String = "Singular")
            | link output = "$singularOut";
       """.stripMargin)
 
-      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty).take(limit)) {
         val tabDelim = line.split("\t")
         val problemId = tabDelim(0)
         val poly = tabDelim(2)
@@ -147,26 +147,18 @@ case class SingularSolver(executable: String = "Singular")
 object SingularSolver {
 
   /** Command line options for Singular solver */
-  trait Cli {
+  trait Cli extends SolverCli {
     this: ScallopConfBase =>
 
-    val withSingular = toggle(
-      name = "singular",
-      noshort = true,
-      default = Some(false),
-      descrYes = "Singular (https://www.singular.uni-kl.de)"
-    )
+    val withSingular = toggleSoft("Singular", "Singular (https://www.singular.uni-kl.de)")
 
-    val singularExec = opt[String](
-      name = "singular-exec",
-      descr = "Path to Singular executable",
-      default = Some("singular"),
-      noshort = true
-    )
+    val singularExec = optExec("Singular", "singular")
 
-    def mkSingularSolver()(implicit tempFileManager: TempFileManager): Option[SingularSolver] =
+    val singularLimit = optLimit("Singular")
+
+    def mkSingularSolver()(implicit tempFileManager: TempFileManager): Option[Solver] =
       if (withSingular())
-        Some(SingularSolver(singularExec()))
+        Some(SingularSolver(singularExec()).withLimit(singularLimit.toOption))
       else
         None
   }

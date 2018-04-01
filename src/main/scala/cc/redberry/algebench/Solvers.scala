@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import cc.redberry.algebench.Problems._
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
+import org.rogach.scallop.ScallopConfBase
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -23,17 +24,40 @@ object Solvers {
     /** Whether software is applicable to given problem */
     def isApplicable(problem: ProblemConfiguration): Boolean
 
-    /** Solves the problem set */
-    final def solve(problem: ProblemData): SolveResult = {
+    private var defaultLimit: Int = Int.MaxValue
+
+    final def withLimit(limit: Int): Solver = {
+      defaultLimit = limit
+      this
+    }
+
+    final def withLimit(limit: Option[Int]): Solver =
+      limit match {
+        case None => this
+        case Some(l) => withLimit(l)
+      }
+
+    /** Solves the problem set
+      *
+      * @param problemData the problem set
+      **/
+    final def solve(problemData: ProblemData): SolveResult = solve(problemData, defaultLimit)
+
+    /** Solves the problem set
+      *
+      * @param problemData the problem set
+      * @param limit       limit number of problems in the set
+      **/
+    final def solve(problemData: ProblemData, limit: Int): SolveResult = {
       println(s"Running $name...")
-      val result = innerSolve(problem)
+      val result = innerSolve(problemData, limit = limit)
       println(s"Total   $name process time ${Util.prettyDuration(result.totalTime)}")
       println(s"Running $name... done. Total benchmarking time: " + Util.prettyDuration(result.individualResults.map(_._2._2.toNanos).sum.nanoseconds) + "")
       result
     }
 
     /** Solves the problem */
-    def innerSolve(problem: ProblemData): SolveResult
+    protected def innerSolve(problem: ProblemData, limit: Int): SolveResult
   }
 
   /**
@@ -151,4 +175,29 @@ object Solvers {
     */
   final case class SolveResult(individualResults: Map[Int, (Boolean, FiniteDuration)],
                                totalTime: FiniteDuration)
+
+
+  trait SolverCli {
+    this: ScallopConfBase =>
+
+    final def toggleSoft(shortName: String, desr: String) = toggle(
+      name = shortName.toLowerCase,
+      noshort = true,
+      default = Some(false),
+      descrYes = desr)
+
+    final def optExec(shortName: String, default: String) = opt[String](
+      name = s"${shortName.toLowerCase}-exec",
+      descr = s"Path to ${shortName} executable",
+      default = Some(default),
+      noshort = true
+    )
+
+    final def optLimit(shortName: String) = opt[Int](
+      name = s"${shortName.toLowerCase}-limit",
+      descr = s"Limit number of problems to solve by $shortName",
+      default = None,
+      noshort = true
+    )
+  }
 }

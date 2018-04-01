@@ -4,7 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.util
 
 import cc.redberry.algebench.Problems.{PolynomialFactorization, PolynomialFactorizationConfiguration, PolynomialGCD, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
-import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardFactorizationSolver, StandardGcdSolver}
+import cc.redberry.algebench.Solvers._
 import cc.redberry.algebench.Util.{TempFileManager, createTempFile}
 import org.rogach.scallop.ScallopConfBase
 
@@ -25,20 +25,19 @@ case class RingsSolver(executable: String = "rings.repl")
     case PolynomialGCD | PolynomialFactorization => true
   }
 
-  override def innerSolve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData, limit: Int): SolveResult = {
     problem match {
-      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
-      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file)
+      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
+      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file, limit)
     }
   }
 
-  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
+  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String, limit: Int): SolveResult = {
     val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
     val ringsOut = createTempFile("ringsGCD.out").getAbsolutePath
     val ringsTmp = createTempFile("ringsTmp.sc").getAbsolutePath
-
     val code =
       s"""
          |
@@ -49,7 +48,7 @@ case class RingsSolver(executable: String = "rings.repl")
          | val output = new PrintWriter(new File("$ringsOut"))
          | try {
          | implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
-         | for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+         | for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty()).take($limit)) {
          |   val tabDelim = line.split("\\t")
          |   val problemId = tabDelim(0)
          |
@@ -90,7 +89,7 @@ case class RingsSolver(executable: String = "rings.repl")
     result
   }
 
-  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String): SolveResult = {
+  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String, limit: Int): SolveResult = {
     val ringString = if (conf.characteristic.isZero) "Z" else s"Zp(${conf.characteristic})"
     val variables = conf.variables.map(v => s""""$v"""").mkString(",")
 
@@ -104,7 +103,7 @@ case class RingsSolver(executable: String = "rings.repl")
       val output = new PrintWriter(new File("$ringsOut"))
       try {
         implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
-        for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+        for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty()).take($limit)) {
           val tabDelim = line.split("\\t")
           val problemId = tabDelim(0)
 
@@ -146,26 +145,18 @@ case class RingsSolver(executable: String = "rings.repl")
 object RingsSolver {
 
   /** Command line options for Rings solver */
-  trait Cli {
+  trait Cli extends SolverCli {
     this: ScallopConfBase =>
 
-    val withRings = toggle(
-      name = "rings",
-      noshort = true,
-      default = Some(false),
-      descrYes = "Rings (http://ringsalgebra.io)"
-    )
+    val withRings = toggleSoft("Rings", "Rings (http://ringsalgebra.io)")
 
-    val ringsExec = opt[String](
-      name = "rings-exec",
-      descr = "Path to Rings executable",
-      default = Some("rings.repl"),
-      noshort = true
-    )
+    val ringsExec = optExec("Rings", "rings.repl")
 
-    def mkRingsSolver()(implicit tempFileManager: TempFileManager): Option[RingsSolver] =
+    val ringsLimit = optLimit("Rings")
+
+    def mkRingsSolver()(implicit tempFileManager: TempFileManager): Option[Solver] =
       if (withRings())
-        Some(RingsSolver(ringsExec()))
+        Some(RingsSolver(ringsExec()).withLimit(ringsLimit.toOption))
       else
         None
   }

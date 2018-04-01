@@ -174,25 +174,32 @@ Subcommand: solve
 Usage: algebench solve [OPTIONS] input_file output_file
 Solves generated probles with provided solvers and writes timing statistics to output_file
 
-      --fermat                    Fermat (http://home.bway.net/lewis/)
+      --fermat                     Fermat (http://home.bway.net/lewis/)
       --nofermat
-      --fermat-exec  <arg>        Path to Fermat executable
-      --form                      FORM (https://www.nikhef.nl/~form/)
+      --fermat-exec  <arg>         Path to Fermat executable
+      --fermat-limit  <arg>        Limit number of problems to solve by Fermat
+      --form                       FORM (https://www.nikhef.nl/~form/)
       --noform
-      --form-exec  <arg>          Path to FORM executable
-      --mathematica               Wolfram Mathematica
+      --form-exec  <arg>           Path to FORM executable
+      --form-limit  <arg>          Limit number of problems to solve by FORM
+      --mathematica                Wolfram Mathematica
+                                   (http://www.wolfram.com/mathematica/)
       --nomathematica
-      --mathematica-exec  <arg>   Path to Mathematica executable
-      --rings                     Rings (http://ringsalgebra.io)
+      --mathematica-exec  <arg>    Path to Mathematica executable
+      --mathematica-limit  <arg>   Limit number of problems to solve by
+                                   Mathematica
+      --rings                      Rings (http://ringsalgebra.io)
       --norings
-      --rings-exec  <arg>         Path to Rings executable
-      --singular                  Singular (https://www.singular.uni-kl.de)
+      --rings-exec  <arg>          Path to Rings executable
+      --rings-limit  <arg>         Limit number of problems to solve by Rings
+      --singular                   Singular (https://www.singular.uni-kl.de)
       --nosingular
-      --singular-exec  <arg>      Path to Singular executable
-      --threads  <arg>            Number of threads for running solvers, if
-                                  euqual to 1 (default) all solvers will be run
-                                  sequentially
-  -h, --help                      Show help message
+      --singular-exec  <arg>       Path to Singular executable
+      --singular-limit  <arg>      Limit number of problems to solve by Singular
+      --threads  <arg>             Number of threads for running solvers, if
+                                   euqual to 1 (default) all solvers will be run
+                                   sequentially
+  -h, --help                       Show help message
 
  trailing arguments:
   input (required)    Input file

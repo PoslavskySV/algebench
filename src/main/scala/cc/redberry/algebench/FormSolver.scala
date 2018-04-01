@@ -1,6 +1,6 @@
 package cc.redberry.algebench
 
-import java.io.{OutputStream, PrintWriter}
+import java.io.PrintWriter
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
@@ -27,14 +27,14 @@ case class FormSolver(executable: String = "form")
     case _ => false
   }
 
-  override def innerSolve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData, limit: Int): SolveResult = {
     problem match {
-      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
+      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
       case _ => ???
     }
   }
 
-  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
+  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String, limit: Int): SolveResult = {
     val variables = conf.variables.mkString(",")
 
     // prepare input FORM file
@@ -51,7 +51,7 @@ case class FormSolver(executable: String = "form")
         formWriter.println(s"modulus ${conf.characteristic};")
 
       formWriter.println(s"Symbols $variables;")
-      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty).take(limit)) {
         val tabDelim = line.split("\t")
         val problemId = tabDelim(0)
         val poly1 = tabDelim(1)
@@ -111,26 +111,18 @@ case class FormSolver(executable: String = "form")
 object FormSolver {
 
   /** Command line options for FORM solver */
-  trait Cli {
+  trait Cli extends SolverCli {
     this: ScallopConfBase =>
 
-    val withFORM = toggle(
-      name = "form",
-      noshort = true,
-      default = Some(false),
-      descrYes = "FORM (https://www.nikhef.nl/~form/)"
-    )
+    val withForm = toggleSoft("FORM", "FORM (https://www.nikhef.nl/~form/)")
 
-    val formExec = opt[String](
-      name = "form-exec",
-      descr = "Path to FORM executable",
-      default = Some("form"),
-      noshort = true
-    )
+    val formExec = optExec("FORM", "form")
 
-    def mkFORMSolver()(implicit tempFileManager: TempFileManager): Option[FormSolver] =
-      if (withFORM())
-        Some(FormSolver(formExec()))
+    val formLimit = optLimit("FORM")
+
+    def mkFORMSolver()(implicit tempFileManager: TempFileManager): Option[Solver] =
+      if (withForm())
+        Some(FormSolver(formExec()).withLimit(formLimit.toOption))
       else
         None
   }

@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import cc.redberry.algebench.Problems.{PolynomialGCD, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
-import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardGcdSolver}
+import cc.redberry.algebench.Solvers.{SolveResult, Solver, SolverCli, StandardGcdSolver}
 import cc.redberry.algebench.Util.TempFileManager
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
@@ -27,14 +27,14 @@ case class FermatSolver(executable: String = "fer64")
     case _ => false
   }
 
-  override def innerSolve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData, limit: Int): SolveResult = {
     problem match {
-      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
+      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
       case _ => ???
     }
   }
 
-  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
+  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String, limit: Int): SolveResult = {
     // prepare input FORM file
     val ferIn = tmpFileManager.createTempFile("ferIn").getAbsolutePath
     val ferOut = tmpFileManager.createTempFile("ferOut").getAbsolutePath
@@ -51,7 +51,7 @@ case class FermatSolver(executable: String = "fer64")
       ferWriter.println("!('start_here'):")
       ferWriter.println("!;")
 
-      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty())) {
+      for (line <- Source.fromFile(inFile).getLines.filter(!_.startsWith("#")).filter(!_.isEmpty).take(limit)) {
         val tabDelim = line.split("\t")
         val problemId = tabDelim(0)
         val poly1 = tabDelim(1)
@@ -175,26 +175,18 @@ object FermatSolver {
   }
 
   /** Command line options for Fermat solver */
-  trait Cli {
+  trait Cli extends SolverCli {
     this: ScallopConfBase =>
 
-    val withFermat = toggle(
-      name = "fermat",
-      noshort = true,
-      default = Some(false),
-      descrYes = "Fermat (http://home.bway.net/lewis/)"
-    )
+    val withFermat = toggleSoft("Fermat", "Fermat (http://home.bway.net/lewis/)")
 
-    val fermatExec = opt[String](
-      name = "fermat-exec",
-      descr = "Path to Fermat executable",
-      default = Some("fer64"),
-      noshort = true
-    )
+    val fermatExec = optExec("Fermat", "fer64")
 
-    def mkFermatSolver()(implicit tempFileManager: TempFileManager): Option[FermatSolver] =
+    val fermatLimit = optLimit("Fermat")
+
+    def mkFermatSolver()(implicit tempFileManager: TempFileManager): Option[Solver] =
       if (withFermat())
-        Some(FermatSolver(fermatExec()))
+        Some(FermatSolver(fermatExec()).withLimit(fermatLimit.toOption))
       else
         None
   }

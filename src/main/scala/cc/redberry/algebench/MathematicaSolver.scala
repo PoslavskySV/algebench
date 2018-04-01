@@ -4,7 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.util
 
 import cc.redberry.algebench.Problems.{PolynomialFactorizationConfiguration, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
-import cc.redberry.algebench.Solvers.{SolveResult, Solver, StandardFactorizationSolver, StandardGcdSolver}
+import cc.redberry.algebench.Solvers._
 import cc.redberry.algebench.Util.{TempFileManager, createTempFile}
 import org.rogach.scallop.ScallopConfBase
 
@@ -26,14 +26,14 @@ final case class MathematicaSolver(executable: String = "wolframscript")
     case _ => false
   }
 
-  override def innerSolve(problem: ProblemData): SolveResult = {
+  override def innerSolve(problem: ProblemData, limit: Int): SolveResult = {
     problem match {
-      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file)
-      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file)
+      case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
+      case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file, limit)
     }
   }
 
-  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String): SolveResult = {
+  private def solveGCD(conf: PolynomialGCDConfiguration, inFile: String, limit: Int): SolveResult = {
     val mmaOut = createTempFile("mmaGCD.out").getAbsolutePath
     val mmaTmp = createTempFile("mmaTmp.ws").getAbsolutePath
     val code =
@@ -41,10 +41,12 @@ final case class MathematicaSolver(executable: String = "wolframscript")
          | modulus = ${conf.characteristic};
          | in = OpenRead["$inFile"];
          | out = OpenWrite["$mmaOut"];
+         | count = 0;
          | While[True,
          |   line = ReadLine[in];
          |   If[line == EndOfFile, Break[]];
          |   If[StringStartsQ[line, "#"], Continue[]];
+         |   If[count == $limit, Break[]];
          |
          |   tabDelim = StringSplit[line, "\t"];
          |
@@ -56,9 +58,9 @@ final case class MathematicaSolver(executable: String = "wolframscript")
          |   timeNanos = Round[gcd[[1]] 10^9] // ToString;
          |   result = StringReplace[gcd[[2]] // InputForm // ToString, " " -> ""];
          |
-         |   WriteString[out,
-         |     problemId <> "\t" <> timeNanos <> "\t" <> result <> "\n"];
-         |   ];
+         |   WriteString[out, problemId <> "\t" <> timeNanos <> "\t" <> result <> "\n"];
+         |   count = count + 1;
+         | ];
          | Close[in];
          | Close[out];
          | Quit[];
@@ -84,17 +86,19 @@ final case class MathematicaSolver(executable: String = "wolframscript")
     result
   }
 
-  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String): SolveResult = {
+  private def solveFactorization(conf: PolynomialFactorizationConfiguration, inFile: String, limit: Int): SolveResult = {
     val mmaOut = createTempFile("mmaFactor.out").getAbsolutePath
     val mmaTmp = createTempFile("mmaTmp.ws").getAbsolutePath
     val code =
       s"""
          | in = OpenRead["$inFile"];
          | out = OpenWrite["$mmaOut"];
+         | count = 0;
          | While[True,
          |   line = ReadLine[in];
          |   If[line == EndOfFile, Break[]];
          |   If[StringStartsQ[line, "#"], Continue[]];
+         |   If[count == $limit, Break[]];
          |
          |   tabDelim = StringSplit[line, "\t"];
          |
@@ -106,9 +110,9 @@ final case class MathematicaSolver(executable: String = "wolframscript")
          |   result = #[[1]] & /@ factors[[2]];
          |   result = StringReplace[result // InputForm // ToString, {" " -> "", "{" -> "", "}" -> "", "," -> "\t"}];
          |
-         |   WriteString[out,
-         |     problemId <> "\t" <> timeNanos <> "\t" <> result <> "\n"];
-         |   ];
+         |   WriteString[out, problemId <> "\t" <> timeNanos <> "\t" <> result <> "\n"];
+         |   count = count + 1;
+         | ];
          | Close[in];
          | Close[out];
          | Quit[];
@@ -139,26 +143,18 @@ final case class MathematicaSolver(executable: String = "wolframscript")
 object MathematicaSolver {
 
   /** Command line options for Mathematica solver */
-  trait Cli {
+  trait Cli extends SolverCli {
     this: ScallopConfBase =>
 
-    val withMathematica = toggle(
-      name = "mathematica",
-      noshort = true,
-      default = Some(false),
-      descrYes = "Wolfram Mathematica"
-    )
+    val withMma = toggleSoft("Mathematica", "Wolfram Mathematica (http://www.wolfram.com/mathematica/)")
 
-    val mmaExec = opt[String](
-      name = "mathematica-exec",
-      descr = "Path to Mathematica executable",
-      default = Some("mathematica"),
-      noshort = true
-    )
+    val mmaExec = optExec("Mathematica", "wolframscript")
 
-    def mkMathematicaSolver()(implicit tempFileManager: TempFileManager): Option[MathematicaSolver] =
-      if (withMathematica())
-        Some(MathematicaSolver(mmaExec()))
+    val mmaLimit = optLimit("Mathematica")
+
+    def mkMathematicaSolver()(implicit tempFileManager: TempFileManager): Option[Solver] =
+      if (withMma())
+        Some(MathematicaSolver(mmaExec()).withLimit(mmaLimit.toOption))
       else
         None
   }
