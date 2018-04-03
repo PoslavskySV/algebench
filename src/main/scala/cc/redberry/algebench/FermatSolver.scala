@@ -41,7 +41,7 @@ case class FermatSolver(executable: String = "fer64")
 
     val ferWriter = new PrintWriter(Files.newBufferedWriter(Paths.get(ferIn)))
     try {
-      ferWriter.println("&N; &t: &E:")
+      ferWriter.println("&N; &t: &E: &(d=0): &(_s=0):")
       if (!conf.characteristic.isZero)
         ferWriter.println(s"&(p = ${conf.characteristic}): ")
 
