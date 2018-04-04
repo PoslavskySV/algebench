@@ -58,11 +58,16 @@ case class FormSolver(executable: String = "form")
         val poly2 = tabDelim(2)
 
 
+        formWriter.write("#$poly1 = ")
+        formWriter.write(poly1)
+        formWriter.write(";\n")
+
+        formWriter.write("#$poly2 = ")
+        formWriter.write(poly2)
+        formWriter.write(";\n")
+
         val code =
           s"""
-             |
-             | #$$poly1 = $poly1;
-             | #$$poly2 = $poly2;
              |
              | #$$tstart = `timer_';
              | #$$gcd = gcd_($$poly1, $$poly2);

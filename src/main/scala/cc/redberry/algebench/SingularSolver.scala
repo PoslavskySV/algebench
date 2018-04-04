@@ -51,10 +51,17 @@ case class SingularSolver(executable: String = "Singular")
         val poly1 = tabDelim(1)
         val poly2 = tabDelim(2)
 
+        writer.write("poly a = ")
+        writer.write(poly1)
+        writer.write(";\n")
+
+        writer.write("poly b = ")
+        writer.write(poly2)
+        writer.write(";\n")
+
+
         writer.println(
           s"""
-             | poly a = $poly1;
-             | poly b = $poly2;
              | int  t = timer;
              | poly g = gcd(a, b);
              | int elapsed = timer - t;

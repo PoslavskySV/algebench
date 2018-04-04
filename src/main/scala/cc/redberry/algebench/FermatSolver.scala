@@ -57,8 +57,14 @@ case class FermatSolver(executable: String = "fer64")
         val poly1 = tabDelim(1)
         val poly2 = tabDelim(2)
 
-        ferWriter.println(s"a$problemId := $poly1:")
-        ferWriter.println(s"b$problemId := $poly2:")
+        ferWriter.write(s"a$problemId :=")
+        ferWriter.write(poly1)
+        ferWriter.write(":\n")
+
+        ferWriter.write(s"b$problemId :=")
+        ferWriter.write(poly2)
+        ferWriter.write(":\n")
+
         ferWriter.println(s"start := &_m(&T): g$problemId := GCD(a$problemId,b$problemId): end := &_m(&T): elapsed := &_m(end - start):")
         ferWriter.println(s"!('problem_$problemId'): !('tab'): !(elapsed): !('tab'): !(g$problemId):")
         ferWriter.println("!;")
