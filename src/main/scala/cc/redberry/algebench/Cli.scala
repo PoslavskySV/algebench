@@ -543,6 +543,7 @@ object Cli {
             if (outFile.exists())
               outFile.delete()
 
+            val order = Util.orderDecode(gbProblems.monomialOrder())
             val writer = new PrintWriter(Files.newBufferedWriter(outFile.toPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
             try {
               writer.println("#" + GroebnerBasisConfiguration(problems.size).asInstanceOf[ProblemConfiguration].asJson.noSpaces)
@@ -554,7 +555,7 @@ object Cli {
                     counter.toString,
                     gbData.name,
                     gbProblems.characteristic().toString(),
-                    Util.orderEncode(gbData.order),
+                    Util.orderEncode(order),
                     gbData.basis.map(s => gbData.ring.show(s)).mkString(",")
                   ).mkString("\t"))
               }
