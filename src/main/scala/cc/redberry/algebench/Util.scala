@@ -2,6 +2,8 @@ package cc.redberry.algebench
 
 import java.io.File
 
+import cc.redberry.rings.poly.multivar.MonomialOrder.{ALEX, GREVLEX, GRLEX, LEX}
+
 import scala.concurrent.duration._
 
 /**
@@ -58,5 +60,21 @@ object Util {
     case MINUTES => "min"
     case HOURS => "h"
     case DAYS => "d"
+  }
+
+  def orderEncode(order: cc.redberry.rings.scaladsl.Ordering): String = order match {
+    case LEX => "LEX"
+    case ALEX => "ALEX"
+    case GRLEX => "GRLEX"
+    case GREVLEX => "GREVLEX"
+    case _ => throw new RuntimeException("unknown order: " + order)
+  }
+
+  def orderDecode(order: String): cc.redberry.rings.scaladsl.Ordering = order.toLowerCase() match {
+    case "lex" => LEX
+    case "alex" => ALEX
+    case "grevlex" => GREVLEX
+    case "grlex" => GRLEX
+    case _ => throw new RuntimeException("unknown order: " + order)
   }
 }

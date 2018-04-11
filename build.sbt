@@ -13,10 +13,11 @@ moduleName := name.value
 resolvers += Resolver.mavenLocal
 
 libraryDependencies ++= Seq(
-  "cc.redberry" %% "rings.scaladsl" % "2.3",
+  "cc.redberry" %% "rings.scaladsl" % "2.3.1",
   "junit" % "junit" % "4.12" % Test,
   "com.novocode" % "junit-interface" % "0.11" % Test exclude("junit", "junit-dep"),
-  "org.rogach" %% "scallop" % "3.1.2"
+  "org.rogach" %% "scallop" % "3.1.2",
+  "org.scala-lang.modules" %% "scala-xml" % "1.1.0"
 )
 
 val circeVersion = "0.9.1"

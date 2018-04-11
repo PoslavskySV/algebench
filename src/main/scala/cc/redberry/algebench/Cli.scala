@@ -1,12 +1,13 @@
 package cc.redberry.algebench
 
-import java.io.{File, PrintWriter}
+import java.io._
 import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import cc.redberry.algebench.Util.TempFileManager
 import cc.redberry.rings.scaladsl._
 import cc.redberry.rings.scaladsl.syntax._
 import org.rogach.scallop._
+import org.rogach.scallop.exceptions.Help
 
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.concurrent.duration._
@@ -70,9 +71,20 @@ object Cli {
     )
   }
 
+  trait CharacteristicOpt extends SingleOutputOpt {
+    this: ScallopConfBase =>
+    val characteristic = opt[IntZ](
+      descr = "Field characteristic",
+      default = Some(DEFAULT_CHARACTERISTIC),
+      validate = p => p.signum() >= 0
+    )
+
+  }
 
   /** basic options for generating problems */
-  trait BasePolyGenOpts extends SingleOutputOpt {
+  trait BasePolyGenOpts
+    extends SingleOutputOpt
+      with CharacteristicOpt {
     this: ScallopConfBase =>
 
     val nProblems = opt[Int](
@@ -86,11 +98,6 @@ object Cli {
       noshort = true,
       validate = 0 <)
 
-    val characteristic = opt[IntZ](
-      descr = "Field characteristic",
-      default = Some(DEFAULT_CHARACTERISTIC),
-      validate = p => p.signum() >= 0
-    )
 
     val bitLength = opt[Int](
       descr = "Bit length of coefficients (only for characteristic 0)",
@@ -284,9 +291,39 @@ object Cli {
         addSubcommand(custom)
       }
       addSubcommand(factorProblems)
+
+      val groebnerProblems = new Subcommand("groebner")
+        with CharacteristicOpt
+        with SingleOutputOpt {
+        banner(
+          """
+            |Usage: algebench generate groebner --problems problem1 [problem2...] [OPTIONS] output_file
+            |Generates a set of Groebner basis problems. To list all available problems run algebench generate groebner --help
+            |""".stripMargin)
+
+        val monomialOrder = opt[String](
+          name = "order",
+          noshort = true,
+          default = Some("GREVLEX"),
+          descr = "Monomial order to use")
+
+        val problems = opt[List[String]](
+          name = "problems",
+          descr = "List of problems (separated with spaces)",
+          required = true
+        )
+      }
+      addSubcommand(groebnerProblems)
     }
     addSubcommand(generateProblems)
 
+    override protected def onError(e: Throwable): Unit = e match {
+      case _: Help if args.contains("groebner") =>
+        generateProblems.groebnerProblems.printHelp()
+        println("\nAvailable polynomial systems: " + GroebnerBasisData.allSystems.keys.mkString(", "))
+        System.exit(0)
+      case _ => super.onError(e)
+    }
 
     // solve generated problems
     val solveProblems = new Subcommand("solve")
@@ -361,8 +398,8 @@ object Cli {
         implicit val random: Random = new Random(runConfiguration.generateProblems.rndSeed())
 
         generateSpec match {
+          // generate GCD problems
           case runConfiguration.generateProblems.gcdProblem :: method :: Nil =>
-            // generate GCD problems
             val gcdProblem = runConfiguration.generateProblems.gcdProblem
 
             val (f1Dist: PolynomialsDistribution, f2Dist: PolynomialsDistribution, gcdDist: PolynomialsDistribution) = method match {
@@ -427,8 +464,8 @@ object Cli {
               writer.close()
             }
 
+          // generate Factorization problems
           case runConfiguration.generateProblems.factorProblems :: method :: Nil =>
-            // generate Factorization problems
             val factorProblem = runConfiguration.generateProblems.factorProblems
 
             val dist = (method match {
@@ -483,6 +520,42 @@ object Cli {
                 writer.write(poly.toString(factorConfig.variables))
                 factors.foreach { f => writer.write("\t"); writer.write(f.toString(factorConfig.variables)) }
                 writer.write("\n")
+              }
+            } finally {
+              writer.close()
+            }
+
+          // generate GB problems
+          case runConfiguration.generateProblems.groebnerProblems :: Nil =>
+            val gbProblems = runConfiguration.generateProblems.groebnerProblems
+            val systems = GroebnerBasisData.allSystems
+
+            val problems = gbProblems.problems().map(_.toLowerCase)
+            val err = problems.filterNot(systems.contains)
+            if (err.nonEmpty) {
+              println("Can't recognize the following systems:" + err)
+              println("Use --help to view possible GB problems")
+              helpAndReturn()
+            }
+
+            val outFile = new File(gbProblems.output())
+            if (outFile.exists())
+              outFile.delete()
+
+            val writer = new PrintWriter(Files.newBufferedWriter(outFile.toPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
+            try {
+              writer.println("#" + GroebnerBasisConfiguration(problems.size).asInstanceOf[ProblemConfiguration].asJson.noSpaces)
+              writer.println(s"#problemID\tname\tcharacteristic\torder\tpolynomials")
+              problems.zipWithIndex.foreach { case (s, counter) =>
+                val gbData = systems(s)
+                writer.println(
+                  Seq(
+                    counter.toString,
+                    gbData.name,
+                    gbProblems.characteristic().toString(),
+                    Util.orderEncode(gbData.order),
+                    gbData.basis.map(s => gbData.ring.show(s)).mkString(",")
+                  ).mkString("\t"))
               }
             } finally {
               writer.close()

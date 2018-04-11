@@ -1,14 +1,16 @@
 package cc.redberry.algebench
 
+import java.io.PrintWriter
 import java.nio.file.{Files, Paths}
 import java.util
 
-import cc.redberry.algebench.Problems.{PolynomialFactorizationConfiguration, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
+import cc.redberry.algebench.Problems.{GroebnerBasisConfiguration, PolynomialFactorizationConfiguration, PolynomialGCDConfiguration, ProblemConfiguration, ProblemData}
 import cc.redberry.algebench.Solvers._
 import cc.redberry.algebench.Util.{TempFileManager, createTempFile}
 import org.rogach.scallop.ScallopConfBase
 
 import scala.concurrent.duration._
+import scala.io.Source
 
 /**
   * Wolfram Mathematica solver
@@ -17,11 +19,13 @@ final case class MathematicaSolver(executable: String = "wolframscript")
                                   (implicit tmpFileManager: TempFileManager)
   extends Solver
     with StandardGcdSolver
-    with StandardFactorizationSolver {
+    with StandardFactorizationSolver
+    with StandardGBSolver {
   override val name: String = "Mathematica"
 
   override def isApplicable(problem: ProblemConfiguration): Boolean = problem match {
     case _: PolynomialGCDConfiguration => true
+    case _: GroebnerBasisConfiguration => true
     case p: PolynomialFactorizationConfiguration => p.characteristic.isZero
     case _ => false
   }
@@ -30,6 +34,7 @@ final case class MathematicaSolver(executable: String = "wolframscript")
     problem match {
       case ProblemData(conf: PolynomialGCDConfiguration, file) => solveGCD(conf, file, limit)
       case ProblemData(conf: PolynomialFactorizationConfiguration, file) => solveFactorization(conf, file, limit)
+      case ProblemData(conf: GroebnerBasisConfiguration, file) => solveGB(file, limit)
     }
   }
 
@@ -128,6 +133,71 @@ final case class MathematicaSolver(executable: String = "wolframscript")
     // read results
     println(s"Reading $name results...")
     val result = SolveResult(importFactorizationResults(conf, inFile, mmaOut), totalTime.nanoseconds)
+
+    // remove tmp files
+    if (tmpFileManager.deleteOnExit) {
+      Files.delete(Paths.get(mmaOut))
+      Files.delete(Paths.get(mmaTmp))
+    }
+
+    result
+  }
+
+  private def solveGB(inFile: String, limit: Int): SolveResult = {
+    val mmaOut = createTempFile("mmaGB.out").getAbsolutePath
+    val mmaTmp = createTempFile("mmaTmp.ws").getAbsolutePath
+
+    val writer = new PrintWriter(Files.newBufferedWriter(Paths.get(mmaTmp)))
+    try {
+      writer.println(s"""out = OpenWrite["$mmaOut"];""")
+      for (line <- Source.fromFile(inFile).getLines.filterNot(_.startsWith("#")).filter(_.nonEmpty).take(limit)) {
+        val tabDelim = line.split("\t")
+        val problemId = tabDelim(0)
+        val problemName = tabDelim(1)
+        val gbData = GroebnerBasisData(problemName)
+        val characteristic = tabDelim(2)
+        val order = tabDelim(3).toLowerCase match {
+          case "lex" => "Lexicographic"
+          case "grevlex" => "DegreeReverseLexicographic"
+          case "glex" => "DegreeLexicographic"
+          case x@_ => throw new RuntimeException(s"Mathematica doesn't support this order: $x")
+        }
+
+        writer.println(
+          s"""
+             | gb = Timing[
+             |        GroebnerBasis[
+             |          {${gbData.basis.map(p => gbData.ring.show(p)).mkString(",")}},
+             |          {${gbData.ring.variables.mkString(",")}},
+             |          MonomialOrder -> $order,
+             |          Modulus -> $characteristic
+             |        ]
+             |      ];
+             |
+             |  timeNanos = Round[gb[[1]] 10^9] // ToString;
+             |  WriteString[out, "$problemId" <> "\t" <> "$problemName" <> "\t" <> timeNanos <> "\n"];
+             |
+        """.stripMargin)
+      }
+
+      writer.write(
+        """
+          | Close[out];
+          | Quit[];
+          |""".stripMargin)
+    } finally {
+      writer.close()
+    }
+
+    println(s"Running $name process...")
+    import scala.sys.process._
+    val start = System.nanoTime()
+    s"$executable -script $mmaTmp" !
+    val totalTime = System.nanoTime() - start
+
+    // read results
+    println(s"Reading $name results...")
+    val result = SolveResult(importGBResults(mmaOut), totalTime.nanoseconds)
 
     // remove tmp files
     if (tmpFileManager.deleteOnExit) {

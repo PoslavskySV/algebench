@@ -16,6 +16,7 @@ object Problems {
   sealed trait ProblemType
   case object PolynomialGCD extends ProblemType
   case object PolynomialFactorization extends ProblemType
+  case object GroebnerBasis extends ProblemType
 
   /** parameters of the problem */
   sealed trait ProblemConfiguration {
@@ -44,6 +45,11 @@ object Problems {
                                                         factors: PolynomialsDistribution)
     extends ProblemConfiguration {
     override val problemType: ProblemType = PolynomialFactorization
+  }
+
+  final case class GroebnerBasisConfiguration(nProblems: Int) extends ProblemConfiguration {
+    /** enum value of problem type */
+    override val problemType: ProblemType = GroebnerBasis
   }
 
   /**

@@ -169,6 +169,21 @@ object Solvers {
   }
 
   /**
+    * Solver for GCD problems
+    */
+  trait StandardGBSolver {
+    /**
+      * Imports results of GB solvers from solver output
+      */
+    def importGBResults(solverOutput: String,
+                        splitHelper: String => Array[String] = s => s.split("\t"),
+                        timeUnit: TimeUnit = TimeUnit.NANOSECONDS): Map[Int, (Boolean, FiniteDuration)] =
+      Source.fromFile(solverOutput).getLines().filterNot(_.startsWith("#"))
+        .map(splitHelper)
+        .map(s => (s(0).toInt, (true, FiniteDuration(s(2).toLong, timeUnit))))
+        .toMap
+  }
+  /**
     *
     * @param individualResults result for each problem: problemId => (success, elapsedTime)
     * @param totalTime         total time including reading the data etc
