@@ -174,6 +174,7 @@ case class SingularSolver(executable: String = "Singular")
 
         writer.println(
           s"""
+             | option(redSB);
              | system("--ticks-per-sec",1000);
              | ring the_ring = $characteristic,(${gbData.ring.variables.mkString(",")}),$order;
              | link output = "$singularOut";
