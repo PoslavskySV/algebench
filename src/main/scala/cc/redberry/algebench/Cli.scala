@@ -297,6 +297,7 @@ object Cli {
         with SingleOutputOpt {
         banner(
           """
+            |
             |Usage: algebench generate groebner --problems problem1 [problem2...] [OPTIONS] output_file
             |Generates a set of Groebner basis problems. To list all available problems run algebench generate groebner --help
             |""".stripMargin)

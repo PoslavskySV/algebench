@@ -169,6 +169,19 @@ Generates polynomials with custom distributions
 
  trailing arguments:
   output (required)   Output file
+
+
+Subcommand: generate groebner
+Usage: algebench generate groebner --problems problem1 [problem2...] [OPTIONS] output_file
+Generates a set of Groebner basis problems. To list all available problems run algebench generate groebner --help
+
+  -c, --characteristic  <arg>   Field characteristic
+      --order  <arg>            Monomial order to use
+  -p, --problems  <arg>...      List of problems (separated with spaces)
+  -h, --help                    Show help message
+
+ trailing arguments:
+  output (required)   Output file
 Subcommand: solve
 
 Usage: algebench solve [OPTIONS] input_file output_file
