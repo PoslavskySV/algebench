@@ -175,12 +175,12 @@ case class SingularSolver(executable: String = "Singular")
         writer.println(
           s"""
              | system("--ticks-per-sec",1000);
-             | ring r = $characteristic,(${gbData.ring.variables.mkString(",")}),$order;
+             | ring the_ring = $characteristic,(${gbData.ring.variables.mkString(",")}),$order;
              | link output = "$singularOut";
-             | ideal I = ${gbData.basis.map(p => gbData.ring.show(p)).mkString(",")};
-             | int  t = timer;
-             | ideal G = std(I);
-             | int elapsed = timer - t;
+             | ideal the_ideal = ${gbData.basis.map(p => gbData.ring.show(p)).mkString(",")};
+             | int  time_start = timer;
+             | ideal the_basis = std(the_ideal);
+             | int elapsed = timer - time_start;
              | fprintf(output, "%s %s %s", "$problemId", "$problemName", elapsed);
         """.stripMargin)
       }
