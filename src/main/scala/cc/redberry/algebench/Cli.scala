@@ -189,6 +189,13 @@ object Cli {
       default = Some(false),
       descrYes = "All input polynomials are irreducible"
     )
+
+    val trivial = toggle(
+      "trivial",
+      noshort = true,
+      default = Some(false),
+      descrYes = "whether to generate trivial problems (multiply all factors and increment)"
+    )
   }
 
   /**
@@ -350,6 +357,20 @@ object Cli {
         required = false
       )
 
+      val limit = opt[Int](
+        name = "limit",
+        noshort = true,
+        descr = "Limit number of considered problems",
+        default = None
+      )
+
+      val timeout = opt[Long](
+        name = "timeout",
+        noshort = true,
+        descr = "Timeout seconds for each tool",
+        default = None
+      )
+
       def mkSolvers()(implicit tempFileManager: TempFileManager): Seq[Option[Solver]] =
         Seq(
           mkRingsSolver(),
@@ -357,6 +378,8 @@ object Cli {
           mkFORMSolver(),
           mkFermatSolver(),
           mkSingularSolver())
+          .map(_.map(_.setTimeout(timeout.toOption.map(_.seconds))))
+          .map(_.map(_.withLimit(limit.toOption)))
     }
     addSubcommand(solveProblems)
 
@@ -500,7 +523,7 @@ object Cli {
               defaultVars(commonOpts.nVariables()),
               commonOpts.nProblems(),
               IntDistribution.fixed(commonOpts.nFactors()),
-              dist)
+              dist, commonOpts.trivial())
 
             val outFile = new File(commonOpts.output())
             if (outFile.exists())
@@ -511,8 +534,12 @@ object Cli {
               writer.println("#" + factorConfig.asInstanceOf[ProblemConfiguration].asJson.noSpaces)
               writer.println(("#problemID" :: "trivial" :: "polynomial" :: (1 to commonOpts.nFactors()).map(i => s"factor_$i").toList).mkString("\t"))
               for (iProblem <- 0 until factorConfig.nProblems) {
-                val factors = (1 to commonOpts.nFactors()).map(_ => dist.sample).toList
+                var factors = (1 to commonOpts.nFactors()).map(_ => dist.sample).toList
                 val poly = factors.foldLeft(factors.head.createOne)(_ * _)
+                if (commonOpts.trivial()) {
+                  poly.increment()
+                  factors = List(poly)
+                }
 
                 writer.write(iProblem.toString)
                 writer.write("\t")

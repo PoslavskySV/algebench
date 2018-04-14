@@ -76,12 +76,11 @@ case class SingularSolver(executable: String = "Singular")
       writer.close()
     }
 
-    println(s"Running $name process...")
     import scala.sys.process._
     val start = System.nanoTime()
     // overcome huge output of Singular which can't be switched off
     val devNull = new OutputStream {override def write(b: Int): Unit = {}}
-    (Seq(s"$executable", "-q", "-c", s"""< "$singularIn";""") #> devNull) !
+    runProcess(Seq(s"$executable", "-q", "-c", s"""< "$singularIn";""") #> devNull)
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -131,10 +130,9 @@ case class SingularSolver(executable: String = "Singular")
       writer.close()
     }
 
-    println(s"Running $name process...")
     import scala.sys.process._
     val start = System.nanoTime()
-    Seq(s"$executable", "-q", "--no-warn", "-c", s"""< "$singularIn";""") !
+    runProcess(Seq(s"$executable", "-q", "--no-warn", "-c", s"""< "$singularIn";"""))
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -191,10 +189,9 @@ case class SingularSolver(executable: String = "Singular")
       writer.close()
     }
 
-    println(s"Running $name process...")
     import scala.sys.process._
     val start = System.nanoTime()
-    Seq(s"$executable", "-q", "--no-warn", "-c", s"""< "$singularIn";""") !
+    runProcess(Seq(s"$executable", "-q", "--no-warn", "-c", s"""< "$singularIn";"""))
     val totalTime = System.nanoTime() - start
 
     // read results

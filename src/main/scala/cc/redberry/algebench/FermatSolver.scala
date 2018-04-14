@@ -76,11 +76,10 @@ case class FermatSolver(executable: String = "fer64")
       ferWriter.close()
     }
 
-    println(s"Running $name process...")
     import sys.process._
     val start = System.nanoTime()
     // omg, I wish my eyes not seen this... will move this to Scala in future
-    (s"$executable"
+    runProcess(s"$executable"
       #< new File(ferIn)
       #| Seq("awk", """/`$/{printf "%s ", $0; next} {print}""")
       #| Seq("sed", "s:`::g")
@@ -90,7 +89,7 @@ case class FermatSolver(executable: String = "fer64")
       #| Seq("sed", "s:tab: :g")
       #| Seq("tr", "[:blank:]", "\\t")
       #| "sed s:problem_::"
-      #> new File(ferOut)) !
+      #> new File(ferOut))
     val totalTime = System.nanoTime() - start
 
     // read results

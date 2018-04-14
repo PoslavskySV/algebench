@@ -71,11 +71,9 @@ final case class MathematicaSolver(executable: String = "wolframscript")
          | Quit[];
       """.stripMargin
 
-    println(s"Running $name process...")
     Files.write(Paths.get(mmaTmp), util.Arrays.asList(code.split("\n"): _*))
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable -script $mmaTmp" !
+    runProcess(s"$executable -script $mmaTmp")
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -123,11 +121,9 @@ final case class MathematicaSolver(executable: String = "wolframscript")
          | Quit[];
       """.stripMargin
 
-    println(s"Running $name process...")
     Files.write(Paths.get(mmaTmp), util.Arrays.asList(code.split("\n"): _*))
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable -script $mmaTmp" !
+    runProcess(s"$executable -script $mmaTmp")
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -189,10 +185,8 @@ final case class MathematicaSolver(executable: String = "wolframscript")
       writer.close()
     }
 
-    println(s"Running $name process...")
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable -script $mmaTmp" !
+    runProcess(s"$executable -script $mmaTmp")
     val totalTime = System.nanoTime() - start
 
     // read results

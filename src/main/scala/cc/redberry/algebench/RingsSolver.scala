@@ -74,10 +74,8 @@ case class RingsSolver(executable: String = "rings.repl")
       """.stripMargin
 
     Files.write(Paths.get(ringsTmp), java.util.Arrays.asList(code.split("\n"): _*))
-    println(s"Running $name process...")
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable $ringsTmp" !
+    runProcess(s"$executable $ringsTmp")
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -102,34 +100,36 @@ case class RingsSolver(executable: String = "rings.repl")
 
     val code =
       s"""
-      import java.io._
-      import scala.io._
-      val output = new PrintWriter(new File("$ringsOut"))
-      try {
-        implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
-        for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty()).take($limit)) {
-          val tabDelim = line.split("\\t")
-          val problemId = tabDelim(0)
-
-          val poly = ring(tabDelim(2))
-
-          val start = System.nanoTime()
-          val factors = ring.factor(poly).map(_._1)
-          val elapsed = System.nanoTime() - start
-
-          output.println( (Seq(problemId, elapsed) ++ factors.map(f => ring.show(f)) ).mkString("\\t"))
-        }
-      } finally {
-        output.close()
-      }
-      exit
-      """
+         |
+         | println("... compiled")
+         |
+         | import java.io._
+         | import scala.io._
+         | val output = new PrintWriter(new File("$ringsOut"))
+         | try {
+         | implicit val ring: MultivariateRing[IntZ] = MultivariateRing($ringString, Array($variables))
+         | for (line <- Source.fromFile("$inFile").getLines.filter(!_.startsWith("#")).filter(!_.isEmpty()).take($limit)) {
+         |     val tabDelim = line.split("\\t")
+         |     val problemId = tabDelim(0)
+         |
+         |     val poly = ring(tabDelim(2))
+         |
+         |     val start = System.nanoTime()
+         |     val factors = ring.factor(poly).map(_._1)
+         |     val elapsed = System.nanoTime() - start
+         |
+         |     output.println( (Seq(problemId, elapsed) ++ factors.map(f => ring.show(f)) ).mkString("\\t"))
+         | }
+         | } finally {
+         |     output.close()
+         | }
+         |
+         | exit
+      """.stripMargin
 
     Files.write(Paths.get(ringsTmp), java.util.Arrays.asList(code.split("\n"): _*))
-    println(s"Running $name process...")
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable $ringsTmp" !
+    runProcess(s"$executable $ringsTmp")
     val totalTime = System.nanoTime() - start
 
     // read results
@@ -199,10 +199,8 @@ case class RingsSolver(executable: String = "rings.repl")
       writer.close()
     }
 
-    println(s"Running $name process...")
-    import scala.sys.process._
     val start = System.nanoTime()
-    s"$executable $ringsTmp" !
+    runProcess(s"$executable $ringsTmp")
     val totalTime = System.nanoTime() - start
 
     // read results

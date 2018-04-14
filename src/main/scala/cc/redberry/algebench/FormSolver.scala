@@ -90,10 +90,8 @@ case class FormSolver(executable: String = "form")
       formWriter.close()
     }
 
-    println(s"Running $name process...")
-    import sys.process._
     val start = System.nanoTime()
-    s"$executable -q $formIn" !
+    runProcess(s"$executable -q $formIn")
     val totalTime = System.nanoTime() - start
 
     // read results

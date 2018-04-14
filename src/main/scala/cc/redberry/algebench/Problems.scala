@@ -42,7 +42,8 @@ object Problems {
                                                         variables: Array[String],
                                                         nProblems: Int,
                                                         nFactors: IntDistribution,
-                                                        factors: PolynomialsDistribution)
+                                                        factors: PolynomialsDistribution,
+                                                        trivial: Boolean)
     extends ProblemConfiguration {
     override val problemType: ProblemType = PolynomialFactorization
   }
